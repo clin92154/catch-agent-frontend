@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 const RICH_TEXT_PATTERN = /<span class="(catch-(?:highlight|positive|negative|warning|info|ai))">([\s\S]*?)<\/span>/g;
+const MARKETING_PROMPT = "規劃沉睡會員的蛋糕喚回活動，提供 9 折優惠，並建立 CRM 活動草稿。";
 
 const suggestionGroups = [
   {
@@ -19,6 +20,10 @@ const suggestionGroups = [
       "預測三峽門市 2026/07/20 起三天的叫貨量。",
       "找出 2025/03/01 報廢超過 4 顆的門市與商品。",
     ],
+  },
+  {
+    label: "AI 行銷規劃",
+    items: [MARKETING_PROMPT],
   },
 ];
 
@@ -180,7 +185,59 @@ function CardList({ cards = [] }) {
   );
 }
 
-function Message({ message }) {
+function ActionList({ actions = [], onAction }) {
+  if (!actions.length) return null;
+  return (
+    <div className="message-actions" aria-label="後續操作">
+      {actions.map((action, index) => (
+        <button
+          type="button"
+          className={`message-action message-action-${action.type}`}
+          key={`${action.type}-${action.label}-${index}`}
+          data-action-type={action.type}
+          onClick={() => onAction(action)}
+        >
+          {action.label}
+          <span aria-hidden="true">{action.type === "open_campaign" ? "↗" : "＋"}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function cardValue(card, label) {
+  return card?.items?.find((item) => item.label === label)?.value || "—";
+}
+
+function CampaignDraftModal({ campaign, onClose }) {
+  if (!campaign) return null;
+  const { card, campaignId } = campaign;
+  return (
+    <div className="campaign-modal" role="presentation">
+      <button className="campaign-modal-backdrop" type="button" aria-label="關閉活動草稿" onClick={onClose} />
+      <section className="campaign-modal-panel" role="dialog" aria-modal="true" aria-labelledby="campaign-modal-title">
+        <header className="campaign-modal-header">
+          <div>
+            <span className="eyebrow">活動規劃</span>
+            <h2 id="campaign-modal-title">活動草稿詳情</h2>
+          </div>
+          <button className="campaign-modal-close" type="button" aria-label="關閉活動草稿" onClick={onClose}>×</button>
+        </header>
+        <div className="campaign-modal-grid">
+          <div><span>活動主題</span><strong>{cardValue(card, "活動主題")}</strong></div>
+          <div><span>目標客群</span><strong>{cardValue(card, "目標客群")}</strong></div>
+          <div><span>預估客群</span><strong>{cardValue(card, "預估客群")}</strong></div>
+          <div><span>優惠內容</span><strong>{cardValue(card, "優惠內容")}</strong></div>
+          <div><span>建議通路</span><strong>{cardValue(card, "建議通路")}</strong></div>
+          <div><span>活動草稿編號</span><strong>{campaignId}</strong></div>
+        </div>
+        <div className="campaign-modal-status">待確認：目前尚未發送優惠或啟動活動。</div>
+      </section>
+    </div>
+  );
+}
+
+function Message({ message, onAction }) {
   const isUser = message.role === "user";
   return (
     <article className={`message-row ${isUser ? "message-user" : "message-assistant"}`}>
@@ -203,6 +260,7 @@ function Message({ message }) {
         {!isUser && (
           <>
             <CardList cards={message.cards} />
+            <ActionList actions={message.actions} onAction={(action) => onAction(action, message)} />
             <FileList files={message.files} />
             <ChartList charts={message.charts} />
           </>
@@ -217,6 +275,8 @@ export default function App() {
   const [messages, setMessages] = useState(initialMessages);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [activeCampaign, setActiveCampaign] = useState(null);
+  const inputRef = useRef(null);
   const endRef = useRef(null);
 
   useEffect(() => {
@@ -243,6 +303,7 @@ export default function App() {
           role: "assistant",
           text: payload?.reply?.text || "API 已完成，但沒有文字回覆。",
           cards: payload?.reply?.cards || [],
+          actions: payload?.reply?.actions || [],
           files: payload?.reply?.files || [],
           charts: payload?.reply?.charts || [],
           confidence: payload?.reply?.confidence,
@@ -265,6 +326,20 @@ export default function App() {
       ]);
     } finally {
       setLoading(false);
+    }
+  }
+
+  function handleAction(action, message) {
+    if (action.type === "open_campaign") {
+      setActiveCampaign({
+        card: message.cards?.find((card) => card.type === "marketing_plan"),
+        campaignId: action.payload?.campaign_id || "—",
+      });
+      return;
+    }
+    if (action.type === "continue_chat") {
+      setInput(action.payload?.message || action.label);
+      requestAnimationFrame(() => inputRef.current?.focus());
     }
   }
 
@@ -291,7 +366,7 @@ export default function App() {
         <section className="sidebar-section">
           <p className="sidebar-label">快速提問</p>
           {suggestionGroups.map((group, groupIndex) => (
-            <details className="suggestion-group" key={group.label} defaultOpen={groupIndex === 0}>
+            <details className="suggestion-group" key={group.label} open={groupIndex === 0}>
               <summary>
                 <span>{group.label}</span>
                 <i aria-hidden="true">⌄</i>
@@ -318,12 +393,21 @@ export default function App() {
           <div><span className="eyebrow">CATCH AGENT</span><h1>門市營運與智慧叫貨</h1></div>
           <div className="header-actions">
             <span className="ai-status"><i />AI 輔助分析</span>
-            <button type="button" className="clear-button" onClick={() => setMessages(initialMessages)}>清除對話</button>
+            <button
+              type="button"
+              className="clear-button"
+              onClick={() => {
+                setMessages(initialMessages);
+                setActiveCampaign(null);
+              }}
+            >
+              清除對話
+            </button>
           </div>
         </header>
 
         <div className="conversation" aria-live="polite">
-          {messages.map((message) => <Message key={message.id} message={message} />)}
+          {messages.map((message) => <Message key={message.id} message={message} onAction={handleAction} />)}
           {loading && (
             <div className="message-row message-assistant">
               <div className="avatar avatar-ai">AI</div>
@@ -338,6 +422,7 @@ export default function App() {
         <footer className="composer-area">
           <form className="composer" onSubmit={handleSubmit}>
             <textarea
+              ref={inputRef}
               value={input}
               onChange={(event) => setInput(event.target.value)}
               onKeyDown={handleKeyDown}
@@ -353,6 +438,7 @@ export default function App() {
           <p>Enter 送出 · Shift + Enter 換行 · AI 回覆僅依系統資料</p>
         </footer>
       </section>
+      <CampaignDraftModal campaign={activeCampaign} onClose={() => setActiveCampaign(null)} />
     </main>
   );
 }
