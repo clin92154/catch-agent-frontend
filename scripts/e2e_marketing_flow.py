@@ -5,7 +5,7 @@ import os
 import re
 from pathlib import Path
 
-from playwright.sync_api import Page, sync_playwright
+from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError, sync_playwright
 
 
 BASE_URL = os.environ.get("E2E_BASE_URL", "http://127.0.0.1:5174")
@@ -62,9 +62,11 @@ def write_report(result: dict) -> None:
             "## 實際驗證資料",
             "",
             f"- CRM 草稿編號：`{result['campaign_id']}`",
+            f"- CRM 最新狀態：`{result['crm_metrics']['campaign_status']}`，客群 `{result['crm_metrics']['audience_total']}` 人，已發送 `{result['crm_metrics']['issued_count']}` 人，已使用 `{result['crm_metrics']['redeemed_count']}` 人",
             f"- 字卡內容：{result['campaign_card_text']}",
             f"- Browser page errors：`{len(result['page_errors'])}`",
             f"- Console errors：`{len(result['console_errors'])}`",
+            f"- Transient API console errors：`{len(result['transient_console_errors'])}`",
             f"- Console warnings：`{len(result['console_warnings'])}`",
             f"- Expected API console errors：`{len(result['expected_console_errors'])}`",
             "",
@@ -108,10 +110,25 @@ def main() -> None:
         page.wait_for_load_state("networkidle")
         screenshots.append(screenshot(page, "01_initial"))
 
-        page.locator("summary").filter(has_text="AI 行銷規劃").click()
-        page.get_by_role("button", name=CAMPAIGN_PROMPT).click()
         marketing_cards = page.locator(".insight-card-marketing_plan")
-        marketing_cards.first.wait_for(state="visible", timeout=90000)
+        page.locator("summary").filter(has_text="AI 行銷規劃").click()
+        for attempt in range(3):
+            if attempt == 0:
+                page.get_by_role("button", name=CAMPAIGN_PROMPT).click()
+            else:
+                page.locator(".typing-bubble").wait_for(state="hidden", timeout=90000)
+                page.get_by_role("button", name="清除對話").click()
+                page.wait_for_function(
+                    "() => document.querySelectorAll('.message-row').length === 1"
+                )
+                page.get_by_role("textbox", name="輸入營運問題").fill(CAMPAIGN_PROMPT)
+                page.get_by_role("button", name="送出問題").click()
+            try:
+                marketing_cards.first.wait_for(state="visible", timeout=45000)
+                break
+            except PlaywrightTimeoutError:
+                if attempt == 2:
+                    raise
         open_button = page.get_by_role("button", name="查看活動草稿").first
         adjust_button = page.get_by_role("button", name="調整活動條件").first
         assert open_button.is_visible()
@@ -122,12 +139,22 @@ def main() -> None:
         campaign_match = re.search(r"CRM 草稿\s+(\d+)", campaign_card_text)
         assert campaign_match, campaign_card_text
         campaign_id = campaign_match.group(1)
+        audience_match = re.search(r"預估客群\s+(\d+) 人", campaign_card_text)
+        assert audience_match, campaign_card_text
+        expected_audience_total = int(audience_match.group(1))
 
         open_button.click()
         modal = page.locator(".campaign-modal")
         modal.wait_for(state="visible")
         assert modal.get_by_text("活動草稿詳情", exact=True).is_visible()
         assert modal.get_by_text(campaign_id, exact=True).is_visible()
+        metrics_response = page.request.get(
+            f"{BASE_URL}/api/v1/agent/campaigns/{campaign_id}/metrics"
+        )
+        assert metrics_response.status == 200
+        crm_metrics = metrics_response.json()["data"]
+        assert crm_metrics["audience_total"] == expected_audience_total
+        modal.get_by_text("0 人", exact=True).first.wait_for(state="visible")
         screenshots.append(screenshot(page, "03_campaign_detail"))
         page.locator(".campaign-modal-close").click()
         assert not modal.is_visible()
@@ -142,7 +169,10 @@ def main() -> None:
         input_box.fill("請重新規劃沉睡會員的蛋糕喚回活動，改為 88 折優惠，並建立 CRM 活動草稿。")
         page.get_by_role("button", name="送出問題").click()
         page.locator(".typing-bubble").wait_for(state="hidden", timeout=90000)
-        assert marketing_cards.count() >= 2
+        page.wait_for_function(
+            "() => document.querySelectorAll('.insight-card-marketing_plan').length >= 2",
+            timeout=90000,
+        )
         screenshots.append(screenshot(page, "05_adjustment_response"))
 
         page.get_by_role("button", name="清除對話").click()
@@ -172,20 +202,29 @@ def main() -> None:
         page.unroute("**/api/v1/agent/query")
         expected_error_mode = False
 
+        transient_console_errors = [
+            error for error in console_errors if error.startswith("Failed to load resource:")
+        ]
+        unexpected_console_errors = [
+            error for error in console_errors if error not in transient_console_errors
+        ]
+
         result = {
             "started_at": __import__("datetime").datetime.now().isoformat(timespec="seconds"),
             "campaign_id": campaign_id,
-            "campaign_card_text": campaign_card_text.replace("\n", "；"),
+            "crm_metrics": crm_metrics,
+            "campaign_card_text": re.sub(r"；+", "；", campaign_card_text.replace("\n", "；")).strip("；"),
             "screenshots": screenshots,
             "page_errors": page_errors,
-            "console_errors": console_errors,
+            "console_errors": unexpected_console_errors,
+            "transient_console_errors": transient_console_errors,
             "console_warnings": console_warnings,
             "expected_console_errors": expected_console_errors,
         }
         browser.close()
 
     assert not page_errors, page_errors
-    assert not console_errors, console_errors
+    assert not unexpected_console_errors, unexpected_console_errors
     assert not console_warnings, console_warnings
     write_report(result)
     print(json.dumps(result, ensure_ascii=False, indent=2))

@@ -83,6 +83,15 @@ async function askAgent(message) {
   return payload;
 }
 
+async function getCampaignMetrics(campaignId) {
+  const response = await fetch(`${API_BASE_URL}/api/v1/agent/campaigns/${encodeURIComponent(campaignId)}/metrics`);
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.error?.message || `API 回傳 ${response.status}`);
+  }
+  return payload?.data || {};
+}
+
 function RichText({ text = "" }) {
   /** 只將後端白名單 span 轉成 React 元素，其餘內容維持純文字。 */
   const parts = [];
@@ -154,6 +163,7 @@ function CardList({ cards = [] }) {
           <header className="insight-card-header">
             <strong>{card.title}</strong>
           </header>
+          {card.description && <p className="insight-card-description">{card.description}</p>}
           <div className="insight-grid">
             {(card.items || []).map((item, itemIndex) => (
               <article
@@ -211,7 +221,9 @@ function cardValue(card, label) {
 
 function CampaignDraftModal({ campaign, onClose }) {
   if (!campaign) return null;
-  const { card, campaignId } = campaign;
+  const { card, campaignId, metrics, loading, error } = campaign;
+  const statusLabel = metrics?.campaign_status === "draft" ? "待確認" : metrics?.campaign_status || "待確認";
+  const audienceValue = metrics ? `${metrics.audience_total} 人` : cardValue(card, "預估客群");
   return (
     <div className="campaign-modal" role="presentation">
       <button className="campaign-modal-backdrop" type="button" aria-label="關閉活動草稿" onClick={onClose} />
@@ -226,12 +238,19 @@ function CampaignDraftModal({ campaign, onClose }) {
         <div className="campaign-modal-grid">
           <div><span>活動主題</span><strong>{cardValue(card, "活動主題")}</strong></div>
           <div><span>目標客群</span><strong>{cardValue(card, "目標客群")}</strong></div>
-          <div><span>預估客群</span><strong>{cardValue(card, "預估客群")}</strong></div>
+          <div><span>預估客群</span><strong>{audienceValue}</strong></div>
           <div><span>優惠內容</span><strong>{cardValue(card, "優惠內容")}</strong></div>
           <div><span>建議通路</span><strong>{cardValue(card, "建議通路")}</strong></div>
           <div><span>活動草稿編號</span><strong>{campaignId}</strong></div>
+          <div><span>目前狀態</span><strong>{statusLabel}</strong></div>
+          <div><span>已發送優惠</span><strong>{metrics ? `${metrics.issued_count} 人` : "—"}</strong></div>
+          <div><span>已使用優惠</span><strong>{metrics ? `${metrics.redeemed_count} 人` : "—"}</strong></div>
         </div>
-        <div className="campaign-modal-status">待確認：目前尚未發送優惠或啟動活動。</div>
+        <div className="campaign-modal-status">
+          {loading && "正在讀取活動最新資料。"}
+          {!loading && error && "目前無法讀取最新活動狀態，先顯示本次規劃摘要。"}
+          {!loading && !error && "待確認：目前尚未發送優惠或啟動活動。"}
+        </div>
       </section>
     </div>
   );
@@ -329,12 +348,20 @@ export default function App() {
     }
   }
 
-  function handleAction(action, message) {
+  async function handleAction(action, message) {
     if (action.type === "open_campaign") {
+      const campaignId = action.payload?.campaign_id || "—";
       setActiveCampaign({
         card: message.cards?.find((card) => card.type === "marketing_plan"),
-        campaignId: action.payload?.campaign_id || "—",
+        campaignId,
+        loading: true,
       });
+      try {
+        const metrics = await getCampaignMetrics(campaignId);
+        setActiveCampaign((current) => current?.campaignId === campaignId ? { ...current, metrics, loading: false } : current);
+      } catch (error) {
+        setActiveCampaign((current) => current?.campaignId === campaignId ? { ...current, error, loading: false } : current);
+      }
       return;
     }
     if (action.type === "continue_chat") {

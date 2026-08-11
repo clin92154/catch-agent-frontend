@@ -116,6 +116,7 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, summary:focus-vis
 .insight-card { overflow: hidden; border: 1px solid var(--border); border-radius: 12px; background: #fff; box-shadow: 0 5px 16px rgba(36, 43, 54, 0.04); }
 .insight-card-header { padding: 14px 16px 10px; }
 .insight-card-header strong { color: var(--text); font-size: 14px; }
+.insight-card-description { margin: 0 16px 12px; color: var(--text-secondary); font-size: 12px; line-height: 1.6; }
 .insight-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin: 0 14px 14px; overflow: hidden; border: 1px solid var(--border); border-radius: 9px; background: #fff; }
 .insight-item { min-width: 0; padding: 14px; border-right: 1px solid var(--border); background: #fff; }
 .insight-item:last-child { border-right: 0; }
