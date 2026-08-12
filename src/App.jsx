@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
+const CRM_ADMIN_URL = (import.meta.env.VITE_CRM_ADMIN_URL || "").replace(/\/$/, "");
 const RICH_TEXT_PATTERN = /<span class="(catch-(?:highlight|positive|negative|warning|info|ai))">([\s\S]*?)<\/span>/g;
 const MARKETING_PROMPT = "規劃沉睡會員的蛋糕喚回活動，提供 9 折優惠，並建立 CRM 活動草稿。";
+const INSIGHT_PROMPT = "分析本週營收、Top 5 商品、門市與通路異常。";
+const MEMBER_PROMPT = "找出最近最可能購買、即將流失及值得優先經營的會員。";
+const PERFORMANCE_PROMPT = "分析活動 fake-campaign-001 是否成功，以及下一次怎麼改善。";
 
 const suggestionGroups = [
   {
@@ -23,7 +27,7 @@ const suggestionGroups = [
   },
   {
     label: "AI 行銷規劃",
-    items: [MARKETING_PROMPT],
+    items: [INSIGHT_PROMPT, MEMBER_PROMPT, MARKETING_PROMPT, PERFORMANCE_PROMPT],
   },
 ];
 
@@ -35,6 +39,10 @@ const INTENT_LABELS = {
   product_sales: "商品銷量",
   demand_forecast: "叫貨預測",
   waste_anomaly: "報廢異常",
+  marketing_insights: "行銷洞察",
+  member_analysis: "會員分析",
+  marketing_campaign_plan: "活動規劃",
+  campaign_performance: "成效分析",
 };
 
 const initialMessages = [
@@ -45,6 +53,7 @@ const initialMessages = [
     cards: [],
     files: [],
     charts: [],
+    reports: [],
   },
 ];
 
@@ -208,9 +217,49 @@ function ActionList({ actions = [], onAction }) {
           onClick={() => onAction(action)}
         >
           {action.label}
-          <span aria-hidden="true">{action.type === "open_campaign" ? "↗" : "＋"}</span>
+          <span aria-hidden="true">{action.type === "continue_chat" ? "＋" : "↗"}</span>
         </button>
       ))}
+    </div>
+  );
+}
+
+function ReportPanel({ report, onClose }) {
+  if (!report) return null;
+  return (
+    <div className="report-modal" role="presentation">
+      <button className="report-modal-backdrop" type="button" aria-label="關閉詳細報告" onClick={onClose} />
+      <section className="report-modal-panel" role="dialog" aria-modal="true" aria-labelledby="report-modal-title">
+        <header className="report-modal-header">
+          <div>
+            <span className="eyebrow">詳細分析</span>
+            <h2 id="report-modal-title">{report.title}</h2>
+            <p>{report.summary}</p>
+          </div>
+          <button className="report-modal-close" type="button" aria-label="關閉詳細報告" onClick={onClose}>×</button>
+        </header>
+        <div className="report-modal-body">
+          {(report.sections || []).map((section, index) => (
+            <section className="report-section" key={`${section.title}-${index}`}>
+              <h3>{section.title}</h3>
+              <div className="report-table-wrap">
+                <table>
+                  <thead>
+                    <tr>{(section.columns || []).map((column) => <th key={column}>{column}</th>)}</tr>
+                  </thead>
+                  <tbody>
+                    {(section.rows || []).map((row, rowIndex) => (
+                      <tr key={`${section.title}-${rowIndex}`}>
+                        {row.map((value, cellIndex) => <td key={`${rowIndex}-${cellIndex}`}>{value}</td>)}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
@@ -251,6 +300,18 @@ function CampaignDraftModal({ campaign, onClose }) {
           {!loading && error && "目前無法讀取最新活動狀態，先顯示本次規劃摘要。"}
           {!loading && !error && "待確認：目前尚未發送優惠或啟動活動。"}
         </div>
+        {CRM_ADMIN_URL && (
+          <div className="campaign-modal-footer">
+            <a
+              className="message-action message-action-open_campaign"
+              href={`${CRM_ADMIN_URL}/staff/dashboard`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              開啟 CRM 後台
+            </a>
+          </div>
+        )}
       </section>
     </div>
   );
@@ -295,6 +356,7 @@ export default function App() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeCampaign, setActiveCampaign] = useState(null);
+  const [activeReport, setActiveReport] = useState(null);
   const inputRef = useRef(null);
   const endRef = useRef(null);
 
@@ -325,6 +387,7 @@ export default function App() {
           actions: payload?.reply?.actions || [],
           files: payload?.reply?.files || [],
           charts: payload?.reply?.charts || [],
+          reports: payload?.reply?.reports || [],
           confidence: payload?.reply?.confidence,
           intent: payload?.resolved_intent?.task || payload?.status || "完成",
         },
@@ -339,6 +402,7 @@ export default function App() {
           cards: [],
           files: [],
           charts: [],
+          reports: [],
           error: true,
           intent: "連線失敗",
         },
@@ -362,6 +426,12 @@ export default function App() {
       } catch (error) {
         setActiveCampaign((current) => current?.campaignId === campaignId ? { ...current, error, loading: false } : current);
       }
+      return;
+    }
+    if (action.type === "open_report") {
+      const reportId = action.payload?.report_id;
+      const report = message.reports?.find((item) => item.report_id === reportId) || message.reports?.[0];
+      if (report) setActiveReport(report);
       return;
     }
     if (action.type === "continue_chat") {
@@ -426,6 +496,7 @@ export default function App() {
               onClick={() => {
                 setMessages(initialMessages);
                 setActiveCampaign(null);
+                setActiveReport(null);
               }}
             >
               清除對話
@@ -466,6 +537,7 @@ export default function App() {
         </footer>
       </section>
       <CampaignDraftModal campaign={activeCampaign} onClose={() => setActiveCampaign(null)} />
+      <ReportPanel report={activeReport} onClose={() => setActiveReport(null)} />
     </main>
   );
 }
