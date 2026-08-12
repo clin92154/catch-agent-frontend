@@ -7,6 +7,11 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "demo:check-env": "node scripts/demo-control.mjs check-env",
+    "demo:up": "node scripts/demo-control.mjs up",
+    "demo:down": "node scripts/demo-control.mjs down",
+    "demo:status": "node scripts/demo-control.mjs status",
+    "demo:logs": "node scripts/demo-control.mjs logs",
     "e2e:marketing": "uv run --with playwright python scripts/e2e_marketing_flow.py",
     "e2e:advisor": "uv run --with playwright python scripts/e2e_marketing_advisor.py"
   },
