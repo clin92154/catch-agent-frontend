@@ -75,7 +75,7 @@ def run() -> None:
         page.wait_for_load_state("networkidle")
         screenshots.append(capture(page, "00_initial"))
 
-        insight_prompt = "分析本週營收、Top 5 商品、門市與通路異常。"
+        insight_prompt = "幫我看看這週生意怎麼樣？哪些商品賣最好、哪間店或哪個通路怪怪的？"
         submit(page, insight_prompt)
         page.locator(".insight-card-marketing_insight").last.wait_for(state="visible", timeout=120000)
         screenshots.append(capture(page, "01_insights"))
@@ -86,7 +86,7 @@ def run() -> None:
         page.locator(".report-modal-close").click()
         records.append({"title": "AI 行銷洞察", "prompt": insight_prompt, "response": response_summary(responses[-1]["payload"])})
 
-        member_prompt = "找出最近最可能購買、即將流失及值得優先經營的會員。"
+        member_prompt = "最近有哪些會員很可能會再買？哪些人快流失了，值得我們先關心？"
         submit(page, member_prompt)
         page.locator(".insight-card-member_analysis").last.wait_for(state="visible", timeout=120000)
         screenshots.append(capture(page, "02_members"))
@@ -96,7 +96,7 @@ def run() -> None:
         page.locator(".report-modal-close").click()
         records.append({"title": "AI 會員分析", "prompt": member_prompt, "response": response_summary(responses[-1]["payload"])})
 
-        campaign_prompt = "規劃沉睡會員的蛋糕喚回活動，提供 9 折優惠，並建立 CRM 活動草稿。"
+        campaign_prompt = "我想把沉睡會員叫回來，主打蛋糕，給 9 折，你幫我規劃一個活動並先存成 CRM 草稿。"
         submit(page, campaign_prompt)
         page.locator(".insight-card-marketing_plan").last.wait_for(state="visible", timeout=120000)
         screenshots.append(capture(page, "03_campaign_plan"))
@@ -114,7 +114,7 @@ def run() -> None:
             "response": response_summary(responses[-1]["payload"]),
         })
 
-        performance_prompt = f"分析活動 {campaign_id} 是否成功，以及下一次怎麼改善。"
+        performance_prompt = f"幫我看看活動 {campaign_id} 成效好不好？用了多少張券、帶來多少營收？下次怎麼調整？"
         submit(page, performance_prompt)
         page.locator(".insight-card-campaign_performance").last.wait_for(state="visible", timeout=120000)
         screenshots.append(capture(page, "04_campaign_performance"))

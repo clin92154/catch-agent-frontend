@@ -1,7 +1,7 @@
 # AI 行銷顧問｜真實 CRM E2E 測試報告
 
-- 測試時間：2026-08-12T14:33:03
-- 測試入口：`http://127.0.0.1:5174`
+- 測試時間：2026-08-12T16:16:54
+- 測試入口：`http://127.0.0.1:5176`
 - CRM Adapter：HTTP 真實 CRM API
 - LLM：本次使用 deterministic Demo LLM，僅驗證真實 CRM HTTP 串接，不產生外部 LLM 費用
 
@@ -18,7 +18,7 @@
 
 ### AI 行銷洞察
 
-- 輸入：分析本週營收、Top 5 商品、門市與通路異常。
+- 輸入：幫我看看這週生意怎麼樣？哪些商品賣最好、哪間店或哪個通路怪怪的？
 - CRM 活動：不適用
 - Agent 回傳：
 ```json
@@ -61,7 +61,7 @@
 
 ### AI 會員分析
 
-- 輸入：找出最近最可能購買、即將流失及值得優先經營的會員。
+- 輸入：最近有哪些會員很可能會再買？哪些人快流失了，值得我們先關心？
 - CRM 活動：不適用
 - Agent 回傳：
 ```json
@@ -103,8 +103,8 @@
 
 ### AI 行銷活動建議
 
-- 輸入：規劃沉睡會員的蛋糕喚回活動，提供 9 折優惠，並建立 CRM 活動草稿。
-- CRM 活動：8
+- 輸入：我想把沉睡會員叫回來，主打蛋糕，給 9 折，你幫我規劃一個活動並先存成 CRM 草稿。
+- CRM 活動：14
 - Agent 回傳：
 ```json
 {
@@ -115,7 +115,7 @@
     }
   },
   "reply": {
-    "text": "已完成「沉睡會員蛋糕喚回活動」活動規劃，預估 21 位會員符合條件，CRM 草稿編號為 8。",
+    "text": "已完成「沉睡會員蛋糕喚回活動」活動規劃，預估 21 位會員符合條件，CRM 草稿編號為 14。",
     "confidence": 10,
     "cards": [
       "marketing_plan"
@@ -125,7 +125,7 @@
         "type": "open_campaign",
         "label": "查看活動草稿",
         "payload": {
-          "campaign_id": "8"
+          "campaign_id": "14"
         }
       },
       {
@@ -143,8 +143,8 @@
 
 ### AI 行銷成效分析
 
-- 輸入：分析活動 8 是否成功，以及下一次怎麼改善。
-- CRM 活動：8
+- 輸入：幫我看看活動 14 成效好不好？用了多少張券、帶來多少營收？下次怎麼調整？
+- CRM 活動：14
 - Agent 回傳：
 ```json
 {
@@ -155,7 +155,7 @@
     }
   },
   "reply": {
-    "text": "CRM 已回傳活動發送、核銷與目前可歸因營收。",
+    "text": "活動尚未執行，待建立發券與核銷資料後分析。",
     "confidence": 10,
     "cards": [
       "campaign_performance"
@@ -165,12 +165,12 @@
         "type": "open_report",
         "label": "查看完整成效報告",
         "payload": {
-          "report_id": "crm-campaign-performance-8"
+          "report_id": "crm-campaign-performance-14"
         }
       }
     ],
     "report_ids": [
-      "crm-campaign-performance-8"
+      "crm-campaign-performance-14"
     ]
   }
 }
