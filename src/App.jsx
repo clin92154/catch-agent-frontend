@@ -6,7 +6,7 @@ const RICH_TEXT_PATTERN = /<span class="(catch-(?:highlight|positive|negative|wa
 const MARKETING_PROMPT = "規劃沉睡會員的蛋糕喚回活動，提供 9 折優惠，並建立 CRM 活動草稿。";
 const INSIGHT_PROMPT = "分析本週營收、Top 5 商品、門市與通路異常。";
 const MEMBER_PROMPT = "找出最近最可能購買、即將流失及值得優先經營的會員。";
-const PERFORMANCE_PROMPT = "分析活動 fake-campaign-001 是否成功，以及下一次怎麼改善。";
+const PERFORMANCE_PROMPT = "分析活動 1 是否成功，以及下一次怎麼改善。";
 
 const suggestionGroups = [
   {

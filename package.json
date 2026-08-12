@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "e2e:marketing": "uv run --with playwright python scripts/e2e_marketing_flow.py"
+    "e2e:marketing": "uv run --with playwright python scripts/e2e_marketing_flow.py",
+    "e2e:advisor": "uv run --with playwright python scripts/e2e_marketing_advisor.py"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.7.0",
