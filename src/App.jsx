@@ -528,7 +528,11 @@ export default function App() {
   }
 
   function handleKeyDown(event) {
-    if (event.key === "Enter" && !event.shiftKey) {
+    if (
+      event.key === "Enter"
+      && !event.shiftKey
+      && (event.metaKey || event.ctrlKey)
+    ) {
       event.preventDefault();
       submitMessage();
     }
@@ -620,7 +624,7 @@ export default function App() {
               送出 <span aria-hidden="true">↗</span>
             </button>
           </form>
-          <p>Enter 送出 · Shift + Enter 換行 · AI 回覆僅依系統資料</p>
+          <p>Enter 換行 · ⌘/Ctrl + Enter 送出 · AI 回覆僅依系統資料</p>
         </footer>
       </section>
       <CampaignDraftModal campaign={activeCampaign} onClose={() => setActiveCampaign(null)} />
