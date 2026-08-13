@@ -1,6 +1,6 @@
 # AI 行銷顧問 Agent｜四情境 E2E 測試報告
 
-- 測試時間：2026-08-13T13:56:45
+- 測試時間：2026-08-13T14:00:46
 - 測試入口：`http://127.0.0.1:5176`
 - CRM Demo 模式：由 Agent backend 的 CRM Adapter 提供可重現測試資料
 - 驗證內容：AI 行銷洞察、AI 會員分析、AI 行銷活動建議、AI 行銷成效分析
@@ -335,7 +335,7 @@
 
 - resolved tool：`create_marketing_campaign`
 - resolved task：`marketing_campaign_plan`
-- 回覆文字：已完成「沉睡會員蛋糕喚回活動」活動規劃，預估 21 位會員符合條件，CRM 草稿編號為 34。
+- 回覆文字：已完成「沉睡會員蛋糕喚回活動」活動規劃，預估 21 位會員符合條件，CRM 草稿編號為 37。
 - 信心度：`10/10`
 
 ```json
@@ -347,7 +347,7 @@
     }
   },
   "reply": {
-    "text": "已完成「沉睡會員蛋糕喚回活動」活動規劃，預估 21 位會員符合條件，CRM 草稿編號為 34。",
+    "text": "已完成「沉睡會員蛋糕喚回活動」活動規劃，預估 21 位會員符合條件，CRM 草稿編號為 37。",
     "confidence": 10,
     "cards": [
       {
@@ -392,7 +392,7 @@
           },
           {
             "label": "CRM 草稿",
-            "value": "34",
+            "value": "37",
             "unit": null,
             "change_pct": null,
             "status": "normal"
@@ -405,7 +405,7 @@
         "type": "open_campaign",
         "label": "查看活動草稿",
         "payload": {
-          "campaign_id": "34"
+          "campaign_id": "37"
         }
       },
       {
@@ -434,13 +434,13 @@
 | 預估客群 | 21 人 | normal |
 | 優惠內容 | 9 折 | info |
 | 建議通路 | store | info |
-| CRM 草稿 | 34 | normal |
+| CRM 草稿 | 37 | normal |
 
 ### 步驟 4｜可操作按鈕
 
 | 按鈕文字 | action type | payload |
 | --- | --- | --- |
-| 查看活動草稿 | `open_campaign` | `{"campaign_id": "34"}` |
+| 查看活動草稿 | `open_campaign` | `{"campaign_id": "37"}` |
 | 調整活動條件 | `continue_chat` | `{"message": "請調整這個活動規劃"}` |
 
 ### 步驟 5｜按鈕後續畫面
@@ -455,7 +455,7 @@
 | 預估客群 | 21 人 |
 | 優惠內容 | 9 折 |
 | 建議通路 | store |
-| 活動草稿編號 | 34 |
+| 活動草稿編號 | 37 |
 | 目前狀態 | 待確認 |
 | 已發送優惠 | 0 人 |
 | 已使用優惠 | 0 人 |
@@ -468,12 +468,12 @@
 
 ### 步驟 1｜使用者輸入與 API 請求
 
-- 對話輸入：`分析活動 34 是否成功，以及下一次怎麼改善。`
+- 對話輸入：`分析活動 37 是否成功，以及下一次怎麼改善。`
 - API：`POST /api/v1/agent/query`
 
 ```json
 {
-  "message": "分析活動 34 是否成功，以及下一次怎麼改善。",
+  "message": "分析活動 37 是否成功，以及下一次怎麼改善。",
   "timezone": "Asia/Taipei",
   "context": {
     "store_codes": []
@@ -503,7 +503,7 @@
       {
         "type": "campaign_performance",
         "title": "AI 行銷成效分析",
-        "description": "活動 34：活動尚未執行，待建立發券與核銷資料後分析。",
+        "description": "活動 37：活動尚未執行，待建立發券與核銷資料後分析。",
         "items": [
           {
             "label": "活動狀態",
@@ -541,13 +541,13 @@
         "type": "open_report",
         "label": "查看完整成效報告",
         "payload": {
-          "report_id": "crm-campaign-performance-34"
+          "report_id": "crm-campaign-performance-37"
         }
       }
     ],
     "reports": [
       {
-        "report_id": "crm-campaign-performance-34",
+        "report_id": "crm-campaign-performance-37",
         "title": "AI 行銷成效詳細報告",
         "summary": "活動尚未執行，待建立發券與核銷資料後分析。",
         "section_titles": [
@@ -564,7 +564,7 @@
 
 #### `campaign_performance`｜AI 行銷成效分析
 
-活動 34：活動尚未執行，待建立發券與核銷資料後分析。
+活動 37：活動尚未執行，待建立發券與核銷資料後分析。
 
 | 欄位 | 回傳值 | 狀態 |
 | --- | --- | --- |
@@ -577,7 +577,7 @@
 
 | 按鈕文字 | action type | payload |
 | --- | --- | --- |
-| 查看完整成效報告 | `open_report` | `{"report_id": "crm-campaign-performance-34"}` |
+| 查看完整成效報告 | `open_report` | `{"report_id": "crm-campaign-performance-37"}` |
 
 ### 步驟 5｜按鈕後續畫面
 
