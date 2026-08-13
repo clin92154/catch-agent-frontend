@@ -8,7 +8,7 @@ from pathlib import Path
 from playwright.sync_api import Page, sync_playwright
 
 
-BASE_URL = os.environ.get("E2E_BASE_URL", "http://127.0.0.1:5174")
+BASE_URL = os.environ.get("E2E_BASE_URL", "http://127.0.0.1:5176")
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_DIR = ROOT / "docs/e2e"
 SCREENSHOT_DIR = OUTPUT_DIR / "real_screenshots"

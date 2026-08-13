@@ -100,6 +100,8 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, summary:focus-vis
 .message-error .message-heading span { color: var(--red); background: #fff; }
 .message-bubble p { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; line-height: 1.75; font-size: 14px; }
 .message-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.workflow-progress { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 10px 13px; border: 1px solid #f0d5bd; border-radius: 10px; color: var(--text-secondary); background: #fffaf6; font-size: 12px; }
+.workflow-progress strong { color: var(--orange-dark); font-size: 12px; }
 .message-action { display: inline-flex; align-items: center; gap: 8px; padding: 9px 12px; border: 1px solid var(--purple-border); border-radius: 10px; color: var(--purple-dark); background: var(--purple-soft); font-size: 12px; font-weight: 800; transition: 160ms ease; }
 .message-action:hover { border-color: var(--purple); background: #ebe7ff; transform: translateY(-1px); }
 .message-action span { font-size: 15px; line-height: 1; }

@@ -6,6 +6,7 @@ dist/
 .vite/
 coverage/
 .demo-runtime/
+scripts/__pycache__/
 
 # Local environment and secrets
 .env

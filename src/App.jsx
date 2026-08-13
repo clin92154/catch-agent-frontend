@@ -7,6 +7,7 @@ const MARKETING_PROMPT = "規劃沉睡會員的蛋糕喚回活動，提供 9 折
 const INSIGHT_PROMPT = "分析本週營收、Top 5 商品、門市與通路異常。";
 const MEMBER_PROMPT = "找出最近最可能購買、即將流失及值得優先經營的會員。";
 const PERFORMANCE_PROMPT = "分析活動 1 是否成功，以及下一次怎麼改善。";
+const CONVERSATION_STORAGE_KEY = "catch-agent-conversation-id";
 
 const suggestionGroups = [
   {
@@ -75,12 +76,13 @@ function confidenceTone(score) {
   return "confidence-high";
 }
 
-async function askAgent(message) {
+async function askAgent(message, conversationId) {
   const response = await fetch(`${API_BASE_URL}/api/v1/agent/query`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       message,
+      ...(conversationId ? { conversation_id: conversationId } : {}),
       timezone: "Asia/Taipei",
       context: { store_codes: [] },
     }),
@@ -99,6 +101,35 @@ async function getCampaignMetrics(campaignId) {
     throw new Error(payload?.error?.message || `API 回傳 ${response.status}`);
   }
   return payload?.data || {};
+}
+
+async function getConversation(conversationId, signal) {
+  const response = await fetch(`${API_BASE_URL}/api/v1/agent/conversations/${encodeURIComponent(conversationId)}`, { signal });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.error?.message || `API 回傳 ${response.status}`);
+  }
+  return payload?.data || null;
+}
+
+function messageFromSavedPayload(item, index) {
+  if (item.role === "user") {
+    return { id: `saved-user-${index}`, role: "user", text: item.content };
+  }
+  const payload = item.payload || {};
+  return {
+    id: `saved-assistant-${index}`,
+    role: "assistant",
+    text: payload?.reply?.text || item.content,
+    cards: payload?.reply?.cards || [],
+    actions: payload?.reply?.actions || [],
+    files: payload?.reply?.files || [],
+    charts: payload?.reply?.charts || [],
+    reports: payload?.reply?.reports || [],
+    workflow: payload?.workflow || null,
+    confidence: payload?.reply?.confidence,
+    intent: payload?.resolved_intent?.task || payload?.status || "完成",
+  };
 }
 
 function RichText({ text = "" }) {
@@ -340,6 +371,12 @@ function Message({ message, onAction }) {
         {!isUser && (
           <>
             <CardList cards={message.cards} />
+            {message.workflow && (
+              <div className="workflow-progress" data-testid="workflow-progress">
+                <span>活動規劃進度</span>
+                <strong>第 {message.workflow.revision} 版 · 待確認</strong>
+              </div>
+            )}
             <ActionList actions={message.actions} onAction={(action) => onAction(action, message)} />
             <FileList files={message.files} />
             <ChartList charts={message.charts} />
@@ -353,20 +390,58 @@ function Message({ message, onAction }) {
 
 export default function App() {
   const [messages, setMessages] = useState(initialMessages);
+  const [conversationId, setConversationId] = useState(
+    () => window.sessionStorage.getItem(CONVERSATION_STORAGE_KEY),
+  );
+  const [restoringConversation, setRestoringConversation] = useState(
+    () => Boolean(window.sessionStorage.getItem(CONVERSATION_STORAGE_KEY)),
+  );
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeCampaign, setActiveCampaign] = useState(null);
   const [activeReport, setActiveReport] = useState(null);
   const inputRef = useRef(null);
   const endRef = useRef(null);
+  const restoreControllerRef = useRef(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
+  useEffect(() => {
+    if (!conversationId) {
+      setRestoringConversation(false);
+      return undefined;
+    }
+    let active = true;
+    const controller = new AbortController();
+    restoreControllerRef.current = controller;
+    getConversation(conversationId, controller.signal)
+      .then((snapshot) => {
+        if (!active || !snapshot) return;
+        const savedMessages = (snapshot.messages || []).map(messageFromSavedPayload);
+        setMessages([initialMessages[0], ...savedMessages]);
+      })
+      .catch(() => {
+        if (!active) return;
+        window.sessionStorage.removeItem(CONVERSATION_STORAGE_KEY);
+        setConversationId(null);
+      })
+      .finally(() => {
+        if (active) setRestoringConversation(false);
+      });
+    return () => {
+      active = false;
+      controller.abort();
+      if (restoreControllerRef.current === controller) {
+        restoreControllerRef.current = null;
+      }
+    };
+  }, []);
+
   async function submitMessage(text = input) {
     const question = text.trim();
-    if (!question || loading) return;
+    if (!question || loading || restoringConversation) return;
 
     setMessages((current) => [
       ...current,
@@ -376,7 +451,12 @@ export default function App() {
     setLoading(true);
 
     try {
-      const payload = await askAgent(question);
+      const payload = await askAgent(question, conversationId);
+      const nextConversationId = payload?.conversation_id || conversationId;
+      setConversationId(nextConversationId);
+      if (nextConversationId) {
+        window.sessionStorage.setItem(CONVERSATION_STORAGE_KEY, nextConversationId);
+      }
       setMessages((current) => [
         ...current,
         {
@@ -388,6 +468,7 @@ export default function App() {
           files: payload?.reply?.files || [],
           charts: payload?.reply?.charts || [],
           reports: payload?.reply?.reports || [],
+          workflow: payload?.workflow || null,
           confidence: payload?.reply?.confidence,
           intent: payload?.resolved_intent?.task || payload?.status || "完成",
         },
@@ -403,6 +484,7 @@ export default function App() {
           files: [],
           charts: [],
           reports: [],
+          workflow: null,
           error: true,
           intent: "連線失敗",
         },
@@ -481,7 +563,7 @@ export default function App() {
 
         <div className="sidebar-note">
           <span className="status-dot" />
-          <div><strong>Agent API</strong><small>每次問題獨立分析，不保存對話記憶</small></div>
+          <div><strong>Agent API</strong><small>對話可延續，活動規劃會保留進度</small></div>
         </div>
       </aside>
 
@@ -494,7 +576,12 @@ export default function App() {
               type="button"
               className="clear-button"
               onClick={() => {
+                restoreControllerRef.current?.abort();
+                restoreControllerRef.current = null;
                 setMessages(initialMessages);
+                setConversationId(null);
+                setRestoringConversation(false);
+                window.sessionStorage.removeItem(CONVERSATION_STORAGE_KEY);
                 setActiveCampaign(null);
                 setActiveReport(null);
               }}
@@ -526,10 +613,10 @@ export default function App() {
               onKeyDown={handleKeyDown}
               placeholder="輸入問題，例如：中壢門市這週有沒有營收異常？"
               rows="1"
-              disabled={loading}
+              disabled={loading || restoringConversation}
               aria-label="輸入營運問題"
             />
-            <button type="submit" disabled={loading || !input.trim()} aria-label="送出問題">
+            <button type="submit" disabled={loading || restoringConversation || !input.trim()} aria-label="送出問題">
               送出 <span aria-hidden="true">↗</span>
             </button>
           </form>

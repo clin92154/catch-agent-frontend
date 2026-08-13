@@ -8,7 +8,7 @@ from pathlib import Path
 from playwright.sync_api import Page, sync_playwright
 
 
-BASE_URL = os.environ.get("E2E_BASE_URL", "http://127.0.0.1:5174")
+BASE_URL = os.environ.get("E2E_BASE_URL", "http://127.0.0.1:5176")
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_DIR = ROOT / "docs/e2e"
 SCREENSHOT_DIR = OUTPUT_DIR / "advisor_screenshots"
@@ -263,6 +263,11 @@ def main() -> None:
 
         input_box = page.get_by_role("textbox", name="輸入營運問題")
         for scenario in SCENARIOS:
+            scenario = dict(scenario)
+            if scenario["key"] == "04_campaign_performance" and results:
+                campaign_id = results[-1].get("campaign_view", {}).get("fields", {}).get("活動草稿編號")
+                if campaign_id:
+                    scenario["prompt"] = f"分析活動 {campaign_id} 是否成功，以及下一次怎麼改善。"
             page.get_by_role("button", name="清除對話").click()
             page.wait_for_function("() => document.querySelectorAll('.message-row').length === 1")
             input_box.fill(scenario["prompt"])
