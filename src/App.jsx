@@ -3,32 +3,40 @@ import { useEffect, useRef, useState } from "react";
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 const CRM_ADMIN_URL = (import.meta.env.VITE_CRM_ADMIN_URL || "").replace(/\/$/, "");
 const RICH_TEXT_PATTERN = /<span class="(catch-(?:highlight|positive|negative|warning|info|ai))">([\s\S]*?)<\/span>/g;
-const MARKETING_PROMPT = "規劃沉睡會員的蛋糕喚回活動，提供 9 折優惠，並建立 CRM 活動草稿。";
-const INSIGHT_PROMPT = "分析本週營收、Top 5 商品、門市與通路異常。";
-const MEMBER_PROMPT = "找出最近最可能購買、即將流失及值得優先經營的會員。";
+const MARKETING_PROMPT = "規劃沉睡會員的蛋糕喚回活動，提供 9 折優惠。";
+const INSIGHT_PROMPT = "分析本週營收、Top 5 商品、門市與通路表現。";
+const MEMBER_PROMPT = "找出最近最可能購買的會員。";
 const PERFORMANCE_PROMPT = "分析活動 1 是否成功，以及下一次怎麼改善。";
 const CONVERSATION_STORAGE_KEY = "catch-agent-conversation-id";
 
 const suggestionGroups = [
   {
-    label: "AI 營運診斷",
+    label: "AI 行銷洞察",
     items: [
-      "三峽門市 2026/07/13 到 07/19 有沒有營收異常？",
-      "找出 2026/07/13 到 07/19 來客異常的門市。",
-      "哪些門市 2026/07/13 到 07/19 有 5,000 元以上大額訂單？",
+      INSIGHT_PROMPT,
+      "本週哪個門市表現最好？",
+      "比較本週各通路的營收表現。",
     ],
   },
   {
-    label: "AI 智慧叫貨",
+    label: "AI 會員分析",
     items: [
-      "分析三峽門市 2026/07/13 到 07/19 的商品銷量。",
-      "預測三峽門市 2026/07/20 起三天的叫貨量。",
-      "找出 2025/03/01 報廢超過 4 顆的門市與商品。",
+      MEMBER_PROMPT,
+      "找出最近可能流失的會員。",
+      "找出值得優先經營的高價值會員。",
     ],
   },
   {
-    label: "AI 行銷規劃",
-    items: [INSIGHT_PROMPT, MEMBER_PROMPT, MARKETING_PROMPT, PERFORMANCE_PROMPT],
+    label: "AI 活動規劃",
+    items: [
+      MARKETING_PROMPT,
+      "幫我規劃一個父親節蛋糕活動。",
+      "針對高價值會員設計 LINE 專屬優惠。",
+    ],
+  },
+  {
+    label: "AI 成效分析",
+    items: [PERFORMANCE_PROMPT, "查看這次活動的核銷率與活動營收。"],
   },
 ];
 
@@ -50,7 +58,7 @@ const initialMessages = [
   {
     id: "welcome",
     role: "assistant",
-    text: "你好，我是 CATCH 營運助手。你可以直接輸入門市名稱、日期與想查詢的營運問題。",
+    text: "你好，我是 CATCH 營運助手。你可以查詢行銷洞察、會員分群、活動規劃與活動成效。",
     cards: [],
     files: [],
     charts: [],
@@ -577,7 +585,7 @@ export default function App() {
 
       <section className="chat-panel">
         <header className="chat-header">
-          <div><span className="eyebrow">CATCH AGENT</span><h1>門市營運與智慧叫貨</h1></div>
+          <div><span className="eyebrow">CATCH AGENT</span><h1>AI 行銷顧問</h1></div>
           <div className="header-actions">
             <span className="ai-status"><i />AI 輔助分析</span>
             <button

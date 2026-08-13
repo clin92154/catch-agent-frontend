@@ -84,6 +84,16 @@ function buildConfig() {
     ...env,
     LLM_MODE: value(env, "DEMO_LLM_MODE", "demo"),
     STORE_METADATA_MODE: value(env, "DEMO_STORE_METADATA_MODE", "csv"),
+    STORE_MASTER_CSV_PATH: value(
+      env,
+      "DEMO_STORE_MASTER_CSV_PATH",
+      "mock_data/official_store_master.csv",
+    ),
+    STORE_LOCATIONS_CSV_PATH: value(
+      env,
+      "DEMO_STORE_LOCATIONS_CSV_PATH",
+      "mock_data/store_locations.csv",
+    ),
     CRM_ADAPTER_MODE: "http",
     CRM_API_BASE_URL: `http://127.0.0.1:${ports.crmBackend}`,
     CRM_API_ACCOUNT: crmAccount,

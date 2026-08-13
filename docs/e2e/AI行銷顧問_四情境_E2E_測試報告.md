@@ -1,8 +1,8 @@
 # AI 行銷顧問 Agent｜四情境 E2E 測試報告
 
-- 測試時間：2026-08-13T14:00:46
+- 測試時間：2026-08-13T15:53:03
 - 測試入口：`http://127.0.0.1:5176`
-- CRM Demo 模式：由 Agent backend 的 CRM Adapter 提供可重現測試資料
+- CRM Demo 模式：Agent 透過 HTTP CRM Adapter 取得 CRM Backend 回覆
 - 驗證內容：AI 行銷洞察、AI 會員分析、AI 行銷活動建議、AI 行銷成效分析
 
 ## 結果
@@ -55,25 +55,25 @@
       {
         "type": "marketing_insight",
         "title": "AI 行銷洞察",
-        "description": "分析期間：2026-08-01～2026-08-07",
+        "description": "全部門市｜分析期間：2026-08-10～2026-08-16",
         "items": [
           {
             "label": "Top 1 商品",
-            "value": "客製生日蛋糕",
+            "value": "經典原味蛋糕",
             "unit": null,
             "change_pct": null,
             "status": "normal"
           },
           {
-            "label": "主要成長通路",
+            "label": "營收最高通路",
             "value": "pos",
             "unit": null,
             "change_pct": null,
             "status": "normal"
           },
           {
-            "label": "異常門市",
-            "value": "目前無重大異常",
+            "label": "門市營收狀態",
+            "value": "CRM 未提供異常判斷",
             "unit": null,
             "change_pct": null,
             "status": "normal"
@@ -84,6 +84,13 @@
             "unit": null,
             "change_pct": null,
             "status": "unavailable"
+          },
+          {
+            "label": "營收最高門市",
+            "value": "Cyberbiz 官網",
+            "unit": null,
+            "change_pct": null,
+            "status": "normal"
           }
         ]
       },
@@ -107,7 +114,7 @@
         "type": "open_report",
         "label": "查看完整洞察報告",
         "payload": {
-          "report_id": "crm-insight-2026-08-01-2026-08-07"
+          "report_id": "crm-insight-2026-08-10-2026-08-16-all"
         }
       },
       {
@@ -120,12 +127,13 @@
     ],
     "reports": [
       {
-        "report_id": "crm-insight-2026-08-01-2026-08-07",
+        "report_id": "crm-insight-2026-08-10-2026-08-16-all",
         "title": "AI 行銷洞察詳細報告",
         "summary": "CRM 已提供營收、商品與通路資料；毛利與同期異常需由 CRM 報表資料補足。",
         "section_titles": [
           "Top 商品",
           "通路比較",
+          "門市營收",
           "改善建議"
         ]
       }
@@ -138,14 +146,15 @@
 
 #### `marketing_insight`｜AI 行銷洞察
 
-分析期間：2026-08-01～2026-08-07
+全部門市｜分析期間：2026-08-10～2026-08-16
 
 | 欄位 | 回傳值 | 狀態 |
 | --- | --- | --- |
-| Top 1 商品 | 客製生日蛋糕 | normal |
-| 主要成長通路 | pos | normal |
-| 異常門市 | 目前無重大異常 | normal |
+| Top 1 商品 | 經典原味蛋糕 | normal |
+| 營收最高通路 | pos | normal |
+| 門市營收狀態 | CRM 未提供異常判斷 | normal |
 | 高營收低毛利 | CRM 未提供毛利資料 | unavailable |
+| 營收最高門市 | Cyberbiz 官網 | normal |
 
 #### `anomaly_list`｜商品與通路異常
 
@@ -159,7 +168,7 @@
 
 | 按鈕文字 | action type | payload |
 | --- | --- | --- |
-| 查看完整洞察報告 | `open_report` | `{"report_id": "crm-insight-2026-08-01-2026-08-07"}` |
+| 查看完整洞察報告 | `open_report` | `{"report_id": "crm-insight-2026-08-10-2026-08-16-all"}` |
 | 規劃改善活動 | `continue_chat` | `{"message": "根據剛才的洞察規劃一個改善活動"}` |
 
 ### 步驟 5｜按鈕後續畫面
@@ -170,8 +179,9 @@
 
 | 報告區塊 | 欄位 | 資料筆數 | 前 5 筆資料 |
 | --- | --- | ---: | --- |
-| Top 商品 | 商品、營收、銷量、變化 | 5 | 客製生日蛋糕／61,200 元／26／資料不可用；巧克力蛋糕／40,240 元／26／資料不可用；午茶組合／38,024 元／40／資料不可用；經典原味蛋糕／36,780 元／32／資料不可用；草莓鮮奶油蛋糕／17,460 元／10／資料不可用 |
-| 通路比較 | 通路、營收、訂單、變化 | 3 | pos／121,796 元／33／資料不可用；cyberbiz／50,223 元／14／資料不可用；oddle／36,054 元／11／資料不可用 |
+| Top 商品 | 商品、營收、銷量、變化 | 5 | 經典原味蛋糕／13,740 元／12／資料不可用；客製生日蛋糕／11,280 元／5／資料不可用；巧克力蛋糕／10,640 元／7／資料不可用；草莓鮮奶油蛋糕／5,310 元／3／資料不可用；午茶組合／4,851 元／5／資料不可用 |
+| 通路比較 | 通路、營收、訂單、變化 | 3 | pos／25,753 元／9／資料不可用；cyberbiz／23,280 元／7／資料不可用；oddle／1,160 元／1／資料不可用 |
+| 門市營收 | 門市、營收、變化 | 5 | Cyberbiz 官網／23,280 元／資料不可用；AI Demo 門市 4／16,060 元／資料不可用；AI Demo 門市 2／8,116 元／資料不可用；AI Demo 門市 1／1,577 元／資料不可用；Oddle 外送／1,160 元／資料不可用 |
 | 改善建議 | 建議 | 2 | 檢視商品毛利資料；對下滑通路安排活動測試 |
 
 - 對應截圖：`advisor_screenshots/01_insights_card.png`
@@ -227,7 +237,7 @@
           },
           {
             "label": "符合會員",
-            "value": "0 人",
+            "value": "240 人",
             "unit": null,
             "change_pct": null,
             "status": "normal"
@@ -289,7 +299,7 @@
 | 欄位 | 回傳值 | 狀態 |
 | --- | --- | --- |
 | 分析類型 | 流失風險 | info |
-| 符合會員 | 0 人 | normal |
+| 符合會員 | 240 人 | normal |
 | 優先對象 | 資料不可用 | info |
 | 主要分群 | 資料不可用 | info |
 
@@ -335,7 +345,10 @@
 
 - resolved tool：`create_marketing_campaign`
 - resolved task：`marketing_campaign_plan`
-- 回覆文字：已完成「沉睡會員蛋糕喚回活動」活動規劃，預估 21 位會員符合條件，CRM 草稿編號為 37。
+- 回覆文字：已完成「沉睡會員蛋糕喚回活動」活動規劃。
+規劃發想：以沉睡會員近期未回購與蛋糕商品偏好作為切入，透過會員專屬優惠降低回購門檻，再用限時活動創造回訪理由。
+決策重點：客群鎖定一般挽留客；主推蛋糕；提供9 折；以門市為主要通路；活動期間30天。
+目前預估 21 位會員符合條件，CRM 草稿編號為 74，你可以繼續告訴我想修改的條件。
 - 信心度：`10/10`
 
 ```json
@@ -347,7 +360,7 @@
     }
   },
   "reply": {
-    "text": "已完成「沉睡會員蛋糕喚回活動」活動規劃，預估 21 位會員符合條件，CRM 草稿編號為 37。",
+    "text": "已完成「沉睡會員蛋糕喚回活動」活動規劃。\n規劃發想：以沉睡會員近期未回購與蛋糕商品偏好作為切入，透過會員專屬優惠降低回購門檻，再用限時活動創造回訪理由。\n決策重點：客群鎖定一般挽留客；主推蛋糕；提供9 折；以門市為主要通路；活動期間30天。\n目前預估 21 位會員符合條件，CRM 草稿編號為 74，你可以繼續告訴我想修改的條件。",
     "confidence": 10,
     "cards": [
       {
@@ -385,17 +398,52 @@
           },
           {
             "label": "建議通路",
-            "value": "store",
+            "value": "門市",
+            "unit": null,
+            "change_pct": null,
+            "status": "info"
+          },
+          {
+            "label": "活動期間",
+            "value": "30 天",
             "unit": null,
             "change_pct": null,
             "status": "info"
           },
           {
             "label": "CRM 草稿",
-            "value": "37",
+            "value": "74",
             "unit": null,
             "change_pct": null,
             "status": "normal"
+          },
+          {
+            "label": "活動說明",
+            "value": "喚回沉睡會員並提升蛋糕回購",
+            "unit": null,
+            "change_pct": null,
+            "status": "info"
+          },
+          {
+            "label": "規劃發想",
+            "value": "以沉睡會員近期未回購與蛋糕商品偏好作為切入，透過會員專屬優惠降低回購門檻，再用限時活動創造回訪理由。",
+            "unit": null,
+            "change_pct": null,
+            "status": "info"
+          },
+          {
+            "label": "決策重點",
+            "value": "客群鎖定一般挽留客；主推蛋糕；提供9 折；以門市為主要通路；活動期間30天。",
+            "unit": null,
+            "change_pct": null,
+            "status": "info"
+          },
+          {
+            "label": "主推商品",
+            "value": "蛋糕",
+            "unit": null,
+            "change_pct": null,
+            "status": "info"
           }
         ]
       }
@@ -405,7 +453,7 @@
         "type": "open_campaign",
         "label": "查看活動草稿",
         "payload": {
-          "campaign_id": "37"
+          "campaign_id": "74"
         }
       },
       {
@@ -433,14 +481,19 @@
 | 目標客群 | 一般挽留客 | info |
 | 預估客群 | 21 人 | normal |
 | 優惠內容 | 9 折 | info |
-| 建議通路 | store | info |
-| CRM 草稿 | 37 | normal |
+| 建議通路 | 門市 | info |
+| 活動期間 | 30 天 | info |
+| CRM 草稿 | 74 | normal |
+| 活動說明 | 喚回沉睡會員並提升蛋糕回購 | info |
+| 規劃發想 | 以沉睡會員近期未回購與蛋糕商品偏好作為切入，透過會員專屬優惠降低回購門檻，再用限時活動創造回訪理由。 | info |
+| 決策重點 | 客群鎖定一般挽留客；主推蛋糕；提供9 折；以門市為主要通路；活動期間30天。 | info |
+| 主推商品 | 蛋糕 | info |
 
 ### 步驟 4｜可操作按鈕
 
 | 按鈕文字 | action type | payload |
 | --- | --- | --- |
-| 查看活動草稿 | `open_campaign` | `{"campaign_id": "37"}` |
+| 查看活動草稿 | `open_campaign` | `{"campaign_id": "74"}` |
 | 調整活動條件 | `continue_chat` | `{"message": "請調整這個活動規劃"}` |
 
 ### 步驟 5｜按鈕後續畫面
@@ -451,11 +504,15 @@
 | CRM 活動欄位 | 回傳值 |
 | --- | --- |
 | 活動主題 | 沉睡會員蛋糕喚回活動 |
+| 活動說明 | 喚回沉睡會員並提升蛋糕回購 |
+| 規劃發想 | 以沉睡會員近期未回購與蛋糕商品偏好作為切入，透過會員專屬優惠降低回購門檻，再用限時活動創造回訪理由。 |
+| 決策重點 | 客群鎖定一般挽留客；主推蛋糕；提供9 折；以門市為主要通路；活動期間30天。 |
 | 目標客群 | 一般挽留客 |
+| 主推商品 | 蛋糕 |
 | 預估客群 | 21 人 |
 | 優惠內容 | 9 折 |
-| 建議通路 | store |
-| 活動草稿編號 | 37 |
+| 建議通路 | 門市 |
+| 活動草稿編號 | 74 |
 | 目前狀態 | 待確認 |
 | 已發送優惠 | 0 人 |
 | 已使用優惠 | 0 人 |
@@ -468,12 +525,12 @@
 
 ### 步驟 1｜使用者輸入與 API 請求
 
-- 對話輸入：`分析活動 37 是否成功，以及下一次怎麼改善。`
+- 對話輸入：`分析活動 74 是否成功，以及下一次怎麼改善。`
 - API：`POST /api/v1/agent/query`
 
 ```json
 {
-  "message": "分析活動 37 是否成功，以及下一次怎麼改善。",
+  "message": "分析活動 74 是否成功，以及下一次怎麼改善。",
   "timezone": "Asia/Taipei",
   "context": {
     "store_codes": []
@@ -503,7 +560,7 @@
       {
         "type": "campaign_performance",
         "title": "AI 行銷成效分析",
-        "description": "活動 37：活動尚未執行，待建立發券與核銷資料後分析。",
+        "description": "活動 74：活動尚未執行，待建立發券與核銷資料後分析。",
         "items": [
           {
             "label": "活動狀態",
@@ -541,13 +598,13 @@
         "type": "open_report",
         "label": "查看完整成效報告",
         "payload": {
-          "report_id": "crm-campaign-performance-37"
+          "report_id": "crm-campaign-performance-74"
         }
       }
     ],
     "reports": [
       {
-        "report_id": "crm-campaign-performance-37",
+        "report_id": "crm-campaign-performance-74",
         "title": "AI 行銷成效詳細報告",
         "summary": "活動尚未執行，待建立發券與核銷資料後分析。",
         "section_titles": [
@@ -564,7 +621,7 @@
 
 #### `campaign_performance`｜AI 行銷成效分析
 
-活動 37：活動尚未執行，待建立發券與核銷資料後分析。
+活動 74：活動尚未執行，待建立發券與核銷資料後分析。
 
 | 欄位 | 回傳值 | 狀態 |
 | --- | --- | --- |
@@ -577,7 +634,7 @@
 
 | 按鈕文字 | action type | payload |
 | --- | --- | --- |
-| 查看完整成效報告 | `open_report` | `{"report_id": "crm-campaign-performance-37"}` |
+| 查看完整成效報告 | `open_report` | `{"report_id": "crm-campaign-performance-74"}` |
 
 ### 步驟 5｜按鈕後續畫面
 

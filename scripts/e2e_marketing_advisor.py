@@ -330,7 +330,7 @@ def main() -> None:
         "",
         f"- 測試時間：{datetime.now().isoformat(timespec='seconds')}",
         f"- 測試入口：`{BASE_URL}`",
-        "- CRM Demo 模式：由 Agent backend 的 CRM Adapter 提供可重現測試資料",
+        "- CRM Demo 模式：Agent 透過 HTTP CRM Adapter 取得 CRM Backend 回覆",
         "- 驗證內容：AI 行銷洞察、AI 會員分析、AI 行銷活動建議、AI 行銷成效分析",
         "",
         "## 結果",

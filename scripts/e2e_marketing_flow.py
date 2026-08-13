@@ -11,7 +11,7 @@ from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError, sy
 BASE_URL = os.environ.get("E2E_BASE_URL", "http://127.0.0.1:5176")
 OUTPUT_DIR = Path(os.environ.get("E2E_OUTPUT_DIR", "docs/e2e"))
 SCREENSHOT_DIR = OUTPUT_DIR / "screenshots"
-CAMPAIGN_PROMPT = "規劃沉睡會員的蛋糕喚回活動，提供 9 折優惠，並建立 CRM 活動草稿。"
+CAMPAIGN_PROMPT = "規劃沉睡會員的蛋糕喚回活動，提供 9 折優惠。"
 
 
 def screenshot(page: Page, name: str) -> str:
@@ -139,7 +139,7 @@ def main() -> None:
         screenshots.append(screenshot(page, "01_initial"))
 
         marketing_cards = page.locator(".insight-card-marketing_plan")
-        page.locator("summary").filter(has_text="AI 行銷規劃").click()
+        page.locator("summary").filter(has_text="AI 活動規劃").click()
         for attempt in range(3):
             if attempt == 0:
                 page.get_by_role("button", name=CAMPAIGN_PROMPT).click()
