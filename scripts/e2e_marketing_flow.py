@@ -52,7 +52,7 @@ def write_report(result: dict) -> None:
         "02_marketing_plan": "3. AI 行銷規劃：活動字卡與操作按鈕",
         "03_campaign_detail": "4. 活動草稿詳情：顯示活動摘要與待確認狀態",
         "04_adjustment_prefilled": "5. 調整活動條件：操作按鈕帶入輸入框，等待使用者補充",
-        "05_adjustment_response": "6. 修改優惠後重新送出：取得新的活動規劃字卡",
+        "05_adjustment_response": "6. 將活動改成父親節後重新送出：取得新的活動規劃字卡",
         "06_clear_conversation": "7. 清除對話：回到初始狀態",
         "07_api_error": "8. API 失敗：顯示可理解的錯誤訊息",
     }
@@ -186,6 +186,9 @@ def main() -> None:
         screenshots.append(screenshot(page, "02_marketing_plan"))
 
         campaign_card_text = marketing_cards.first.inner_text()
+        assert marketing_cards.first.get_by_text("活動說明", exact=True).is_visible()
+        assert marketing_cards.first.get_by_text("規劃發想", exact=True).is_visible()
+        assert marketing_cards.first.get_by_text("決策重點", exact=True).is_visible()
         campaign_match = re.search(r"CRM 草稿\s+(\d+)", campaign_card_text)
         assert campaign_match, campaign_card_text
         campaign_id = campaign_match.group(1)
@@ -216,7 +219,7 @@ def main() -> None:
         assert input_box.input_value() == "請調整這個活動規劃"
         screenshots.append(screenshot(page, "04_adjustment_prefilled"))
 
-        input_box.fill("請重新規劃沉睡會員的蛋糕喚回活動，改為 88 折優惠，並建立 CRM 活動草稿。")
+        input_box.fill("請把這個活動改成父親節，優惠改為 88 折，並建立 CRM 活動草稿。")
         page.get_by_role("button", name="送出問題").click()
         page.locator(".typing-bubble").wait_for(state="hidden", timeout=90000)
         page.wait_for_function(
@@ -228,7 +231,7 @@ def main() -> None:
         adjusted_request = next(
             item
             for item in reversed(query_requests)
-            if "改為 88 折優惠" in item.get("message", "")
+            if "改成父親節" in item.get("message", "")
         )
         assert adjusted_request.get("conversation_id")
         assert adjusted_request["conversation_id"] == conversation_id
@@ -238,6 +241,9 @@ def main() -> None:
             if item.get("workflow", {}).get("revision") == 2
         )
         assert second_campaign_response["conversation_id"] == conversation_id
+        assert second_campaign_response["workflow"]["plan"]["event_name"] == "父親節"
+        assert second_campaign_response["workflow"]["plan"]["campaign_name"] == "父親節蛋糕感謝回饋活動"
+        assert marketing_cards.last.get_by_text("父親節蛋糕感謝回饋活動", exact=True).is_visible()
         snapshot_response = page.request.get(
             f"{BASE_URL}/api/v1/agent/conversations/{conversation_id}"
         )

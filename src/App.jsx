@@ -317,7 +317,11 @@ function CampaignDraftModal({ campaign, onClose }) {
         </header>
         <div className="campaign-modal-grid">
           <div><span>活動主題</span><strong>{cardValue(card, "活動主題")}</strong></div>
+          <div><span>活動說明</span><strong>{cardValue(card, "活動說明")}</strong></div>
+          <div><span>規劃發想</span><strong>{cardValue(card, "規劃發想")}</strong></div>
+          <div><span>決策重點</span><strong>{cardValue(card, "決策重點")}</strong></div>
           <div><span>目標客群</span><strong>{cardValue(card, "目標客群")}</strong></div>
+          <div><span>主推商品</span><strong>{cardValue(card, "主推商品")}</strong></div>
           <div><span>預估客群</span><strong>{audienceValue}</strong></div>
           <div><span>優惠內容</span><strong>{cardValue(card, "優惠內容")}</strong></div>
           <div><span>建議通路</span><strong>{cardValue(card, "建議通路")}</strong></div>
