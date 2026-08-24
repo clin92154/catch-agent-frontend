@@ -33,9 +33,9 @@ SCENARIOS = [
     {
         "key": "03_campaign_plan",
         "title": "AI 行銷活動建議",
-        "prompt": "規劃沉睡會員的蛋糕喚回活動，提供 9 折優惠，並建立 CRM 活動草稿。",
+        "prompt": "規劃沉睡會員的蛋糕喚回活動，提供 9 折優惠。",
         "card": "marketing_plan",
-        "action": "查看活動草稿",
+        "action": "建立活動草稿",
         "report": None,
     },
     {
@@ -45,6 +45,14 @@ SCENARIOS = [
         "card": "campaign_performance",
         "action": "查看完整成效報告",
         "report": "AI 行銷成效詳細報告",
+    },
+    {
+        "key": "05_strategy_research",
+        "title": "CRM 行銷活動策略研究",
+        "prompt": "研究活動 1，提前四週和提前兩週哪個效果好？",
+        "card": "strategy_research",
+        "action": "查看策略研究報告",
+        "report": "CRM 行銷活動策略研究報告",
     },
 ]
 
@@ -211,6 +219,17 @@ def render_scenario_details(details: dict) -> list[str]:
             lines.append(
                 f"| {section['title']} | {'、'.join(section['columns']) or '-'} | {section['row_count']} | {rows} |"
             )
+    elif details.get("workflow_steps"):
+        lines.extend(
+            [
+                "| 流程步驟 | API | 回傳摘要 |",
+                "| --- | --- | --- |",
+            ]
+        )
+        for step in details["workflow_steps"]:
+            lines.append(
+                f"| {step['label']} | `{step['method']} {step['path']}` | {step['summary']} |"
+            )
     elif details.get("campaign_view"):
         view = details["campaign_view"]
         lines.extend(
@@ -239,10 +258,12 @@ def main() -> None:
     page_errors: list[str] = []
     results: list[dict] = []
     api_responses: list[dict] = []
+    action_responses: list[dict] = []
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
         page = browser.new_page(viewport={"width": 1440, "height": 1000})
+        page.on("dialog", lambda dialog: dialog.accept())
         page.on("pageerror", lambda error: page_errors.append(str(error)))
         page.on("console", lambda message: console_errors.append(message.text) if message.type == "error" else None)
 
@@ -250,9 +271,13 @@ def main() -> None:
             if response.request.method != "POST":
                 return
             if not response.url.endswith("/api/v1/agent/query"):
-                return
+                if "/api/v1/agent/campaigns/" not in response.url:
+                    return
+                target = action_responses
+            else:
+                target = api_responses
             try:
-                api_responses.append(response.json())
+                target.append({"url": response.url, "payload": response.json()})
             except Exception:
                 return
 
@@ -264,19 +289,28 @@ def main() -> None:
         input_box = page.get_by_role("textbox", name="輸入營運問題")
         for scenario in SCENARIOS:
             scenario = dict(scenario)
-            if scenario["key"] == "04_campaign_performance" and results:
-                campaign_id = results[-1].get("campaign_view", {}).get("fields", {}).get("活動草稿編號")
+            if scenario["key"] in {"04_campaign_performance", "05_strategy_research"} and results:
+                campaign_id = next(
+                    (item.get("campaign_id") for item in reversed(results) if item.get("campaign_id")),
+                    None,
+                )
                 if campaign_id:
-                    scenario["prompt"] = f"分析活動 {campaign_id} 是否成功，以及下一次怎麼改善。"
+                    scenario["prompt"] = (
+                        f"研究活動 {campaign_id}，提前四週和提前兩週哪個效果好？"
+                        if scenario["key"] == "05_strategy_research"
+                        else f"分析活動 {campaign_id} 是否成功，以及下一次怎麼改善。"
+                    )
             page.get_by_role("button", name="清除對話").click()
             page.wait_for_function("() => document.querySelectorAll('.message-row').length === 1")
+            api_responses.clear()
+            action_responses.clear()
             input_box.fill(scenario["prompt"])
             page.get_by_role("button", name="送出問題").click()
             page.locator(".typing-bubble").wait_for(state="hidden", timeout=90000)
             card = page.locator(f".insight-card-{scenario['card']}").last
             card.wait_for(state="visible", timeout=90000)
             assert api_responses, "Agent query response was not captured"
-            api_payload = api_responses[-1]
+            api_payload = api_responses[-1]["payload"]
             card_screenshot = capture(page, scenario["key"] + "_card")
             screenshots.append(card_screenshot)
             action = page.get_by_role("button", name=scenario["action"]).last
@@ -308,6 +342,60 @@ def main() -> None:
                 details["followup_screenshot"] = capture(page, scenario["key"] + "_report")
                 screenshots.append(details["followup_screenshot"])
                 page.locator(".report-modal-close").click()
+            elif scenario["key"] == "03_campaign_plan":
+                page.get_by_role("button", name="發送優惠券").last.wait_for(state="visible", timeout=90000)
+                create_payload = next(
+                    item["payload"]
+                    for item in reversed(action_responses)
+                    if item["url"].endswith("/api/v1/agent/campaigns/draft")
+                )
+                page.get_by_role("button", name="發送優惠券").last.click()
+                page.locator(".insight-card-campaign_performance").last.wait_for(
+                    state="visible", timeout=90000
+                )
+                send_payload = next(
+                    item["payload"]
+                    for item in reversed(action_responses)
+                    if item["url"].endswith("/send")
+                )
+                details["triggered_action"] = "建立活動草稿 → 發送優惠券"
+                details["campaign_id"] = (
+                    create_payload.get("workflow") or {}
+                ).get("campaign_id")
+                details["workflow_steps"] = [
+                    {
+                        "label": "建立活動草稿（使用者確認後）",
+                        "method": "POST",
+                        "path": "/api/v1/agent/campaigns/draft",
+                        "summary": (create_payload.get("reply") or {}).get("text", "-"),
+                    },
+                    {
+                        "label": "發送優惠券（Demo 確認後）",
+                        "method": "POST",
+                        "path": "/api/v1/agent/campaigns/{campaign_id}/send",
+                        "summary": (send_payload.get("reply") or {}).get("text", "-"),
+                    },
+                ]
+                performance = page.locator(".insight-card-campaign_performance").last
+                details["campaign_view"] = {
+                    "title": performance.locator("header strong").inner_text(),
+                    "fields": {
+                        item.locator("strong").inner_text(): item.locator("b").inner_text()
+                        for item in performance.locator(".insight-item").all()
+                    },
+                    "status_message": performance.locator(".insight-card-description").inner_text(),
+                }
+                details["followup_screenshot"] = capture(page, scenario["key"] + "_sent")
+                screenshots.append(details["followup_screenshot"])
+                page.get_by_role("button", name="查看活動成效").last.click()
+                performance_modal = page.locator(".campaign-modal")
+                performance_modal.wait_for(state="visible")
+                assert performance_modal.get_by_text("活動成效摘要", exact=True).is_visible()
+                details["performance_modal_screenshot"] = capture(
+                    page, scenario["key"] + "_performance_modal"
+                )
+                screenshots.append(details["performance_modal_screenshot"])
+                page.locator(".campaign-modal-close").click()
             else:
                 campaign = page.locator(".campaign-modal")
                 campaign.wait_for(state="visible")
@@ -326,12 +414,12 @@ def main() -> None:
     assert not page_errors, page_errors
     assert not console_errors, console_errors
     report = [
-        "# AI 行銷顧問 Agent｜四情境 E2E 測試報告",
+        "# AI 行銷顧問 Agent｜行銷情境 E2E 測試報告",
         "",
         f"- 測試時間：{datetime.now().isoformat(timespec='seconds')}",
         f"- 測試入口：`{BASE_URL}`",
         "- CRM Demo 模式：Agent 透過 HTTP CRM Adapter 取得 CRM Backend 回覆",
-        "- 驗證內容：AI 行銷洞察、AI 會員分析、AI 行銷活動建議、AI 行銷成效分析",
+        "- 驗證內容：AI 行銷洞察、AI 會員分析、AI 行銷活動建議、AI 行銷成效分析、CRM 策略研究",
         "",
         "## 結果",
         "",
@@ -349,7 +437,7 @@ def main() -> None:
             "",
             "## 驗收",
             "",
-            "- 四種情境均由對話輸入觸發 Agent API。",
+            "- 五種情境均由對話輸入觸發 Agent API。",
             "- cards 顯示 CRM facts 摘要。",
             "- 洞察、會員與成效情境可開啟詳細報告。",
             "- 活動建議情境可開啟 CRM 活動草稿詳情。",

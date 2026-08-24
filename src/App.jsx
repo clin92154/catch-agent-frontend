@@ -7,6 +7,7 @@ const MARKETING_PROMPT = "規劃沉睡會員的蛋糕喚回活動，提供 9 折
 const INSIGHT_PROMPT = "分析本週營收、Top 5 商品、門市與通路表現。";
 const MEMBER_PROMPT = "找出最近最可能購買的會員。";
 const PERFORMANCE_PROMPT = "分析活動 1 是否成功，以及下一次怎麼改善。";
+const STRATEGY_RESEARCH_PROMPT = "研究活動 1，提前四週和提前兩週哪個效果好？";
 const CONVERSATION_STORAGE_KEY = "catch-agent-conversation-id";
 
 const suggestionGroups = [
@@ -36,7 +37,7 @@ const suggestionGroups = [
   },
   {
     label: "AI 成效分析",
-    items: [PERFORMANCE_PROMPT, "查看這次活動的核銷率與活動營收。"],
+    items: [PERFORMANCE_PROMPT, "查看這次活動的核銷率與活動營收。", STRATEGY_RESEARCH_PROMPT],
   },
 ];
 
@@ -52,6 +53,7 @@ const INTENT_LABELS = {
   member_analysis: "會員分析",
   marketing_campaign_plan: "活動規劃",
   campaign_performance: "成效分析",
+  strategy_research: "策略研究",
 };
 
 const initialMessages = [
@@ -102,6 +104,32 @@ async function askAgent(message, conversationId) {
   return payload;
 }
 
+async function createCampaignDraft(conversationId) {
+  const response = await fetch(`${API_BASE_URL}/api/v1/agent/campaigns/draft`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ conversation_id: conversationId }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.error?.message || `API 回傳 ${response.status}`);
+  }
+  return payload;
+}
+
+async function sendCampaignCoupon(campaignId, conversationId) {
+  const response = await fetch(`${API_BASE_URL}/api/v1/agent/campaigns/${encodeURIComponent(campaignId)}/send`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ conversation_id: conversationId }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.error?.message || `API 回傳 ${response.status}`);
+  }
+  return payload;
+}
+
 async function getCampaignMetrics(campaignId) {
   const response = await fetch(`${API_BASE_URL}/api/v1/agent/campaigns/${encodeURIComponent(campaignId)}/metrics`);
   const payload = await response.json().catch(() => ({}));
@@ -137,6 +165,24 @@ function messageFromSavedPayload(item, index) {
     workflow: payload?.workflow || null,
     confidence: payload?.reply?.confidence,
     intent: payload?.resolved_intent?.task || payload?.status || "完成",
+    conversationId: payload?.conversation_id || null,
+  };
+}
+
+function messageFromAgentPayload(payload) {
+  return {
+    id: crypto.randomUUID(),
+    role: "assistant",
+    text: payload?.reply?.text || "API 已完成，但沒有文字回覆。",
+    cards: payload?.reply?.cards || [],
+    actions: payload?.reply?.actions || [],
+    files: payload?.reply?.files || [],
+    charts: payload?.reply?.charts || [],
+    reports: payload?.reply?.reports || [],
+    workflow: payload?.workflow || null,
+    confidence: payload?.reply?.confidence,
+    intent: payload?.resolved_intent?.task || payload?.status || "完成",
+    conversationId: payload?.conversation_id || null,
   };
 }
 
@@ -310,7 +356,12 @@ function cardValue(card, label) {
 function CampaignDraftModal({ campaign, onClose }) {
   if (!campaign) return null;
   const { card, campaignId, metrics, loading, error } = campaign;
-  const statusLabel = metrics?.campaign_status === "draft" ? "待確認" : metrics?.campaign_status || "待確認";
+  const isPerformanceCard = card?.type === "campaign_performance";
+  const statusLabel = metrics?.campaign_status === "executed"
+    ? "已發送"
+    : metrics?.campaign_status === "draft"
+      ? "待確認"
+      : metrics?.campaign_status || "待確認";
   const audienceValue = metrics ? `${metrics.audience_total} 人` : cardValue(card, "預估客群");
   return (
     <div className="campaign-modal" role="presentation">
@@ -319,35 +370,50 @@ function CampaignDraftModal({ campaign, onClose }) {
         <header className="campaign-modal-header">
           <div>
             <span className="eyebrow">活動規劃</span>
-            <h2 id="campaign-modal-title">活動草稿詳情</h2>
+            <h2 id="campaign-modal-title">{isPerformanceCard ? "活動成效摘要" : "活動草稿詳情"}</h2>
           </div>
           <button className="campaign-modal-close" type="button" aria-label="關閉活動草稿" onClick={onClose}>×</button>
         </header>
         <div className="campaign-modal-grid">
-          <div><span>活動主題</span><strong>{cardValue(card, "活動主題")}</strong></div>
-          <div><span>活動說明</span><strong>{cardValue(card, "活動說明")}</strong></div>
-          <div><span>規劃發想</span><strong>{cardValue(card, "規劃發想")}</strong></div>
-          <div><span>決策重點</span><strong>{cardValue(card, "決策重點")}</strong></div>
-          <div><span>目標客群</span><strong>{cardValue(card, "目標客群")}</strong></div>
-          <div><span>主推商品</span><strong>{cardValue(card, "主推商品")}</strong></div>
-          <div><span>預估客群</span><strong>{audienceValue}</strong></div>
-          <div><span>優惠內容</span><strong>{cardValue(card, "優惠內容")}</strong></div>
-          <div><span>建議通路</span><strong>{cardValue(card, "建議通路")}</strong></div>
-          <div><span>活動草稿編號</span><strong>{campaignId}</strong></div>
-          <div><span>目前狀態</span><strong>{statusLabel}</strong></div>
-          <div><span>已發送優惠</span><strong>{metrics ? `${metrics.issued_count} 人` : "—"}</strong></div>
-          <div><span>已使用優惠</span><strong>{metrics ? `${metrics.redeemed_count} 人` : "—"}</strong></div>
+          {isPerformanceCard ? (
+            <>
+              <div><span>CRM 草稿</span><strong>{campaignId}</strong></div>
+              <div><span>本次發送</span><strong>{cardValue(card, "本次發送")}</strong></div>
+              <div><span>已核銷</span><strong>{cardValue(card, "已核銷")}</strong></div>
+              <div><span>核銷率</span><strong>{cardValue(card, "核銷率")}</strong></div>
+              <div><span>目前狀態</span><strong>{statusLabel}</strong></div>
+              <div><span>活動營收</span><strong>{metrics?.estimated_revenue ?? "資料尚未提供"}</strong></div>
+            </>
+          ) : (
+            <>
+              <div><span>活動主題</span><strong>{cardValue(card, "活動主題")}</strong></div>
+              <div><span>活動說明</span><strong>{cardValue(card, "活動說明")}</strong></div>
+              <div><span>規劃發想</span><strong>{cardValue(card, "規劃發想")}</strong></div>
+              <div><span>決策重點</span><strong>{cardValue(card, "決策重點")}</strong></div>
+              <div><span>目標客群</span><strong>{cardValue(card, "目標客群")}</strong></div>
+              <div><span>主推商品</span><strong>{cardValue(card, "主推商品")}</strong></div>
+              <div><span>預估客群</span><strong>{audienceValue}</strong></div>
+              <div><span>優惠內容</span><strong>{cardValue(card, "優惠內容")}</strong></div>
+              <div><span>建議通路</span><strong>{cardValue(card, "建議通路")}</strong></div>
+              <div><span>活動草稿編號</span><strong>{campaignId}</strong></div>
+              <div><span>目前狀態</span><strong>{statusLabel}</strong></div>
+              <div><span>已發送優惠</span><strong>{metrics ? `${metrics.issued_count} 人` : "—"}</strong></div>
+              <div><span>已使用優惠</span><strong>{metrics ? `${metrics.redeemed_count} 人` : "—"}</strong></div>
+            </>
+          )}
         </div>
         <div className="campaign-modal-status">
           {loading && "正在讀取活動最新資料。"}
           {!loading && error && "目前無法讀取最新活動狀態，先顯示本次規劃摘要。"}
-          {!loading && !error && "待確認：目前尚未發送優惠或啟動活動。"}
+          {!loading && !error && metrics?.campaign_status === "draft" && "草稿已建立，請至 CRM 後台確認是否發送優惠券。"}
+          {!loading && !error && metrics?.campaign_status === "executed" && "CRM 已完成發送，可查看後續核銷與營收成效。"}
+          {!loading && !error && !metrics?.campaign_status && "目前尚未取得 CRM 活動狀態。"}
         </div>
         {CRM_ADMIN_URL && (
           <div className="campaign-modal-footer">
             <a
               className="message-action message-action-open_campaign"
-              href={`${CRM_ADMIN_URL}/staff/dashboard`}
+              href={`${CRM_ADMIN_URL}/staff/automation/ai-marketing?campaign_id=${encodeURIComponent(campaignId)}`}
               target="_blank"
               rel="noreferrer"
             >
@@ -362,6 +428,11 @@ function CampaignDraftModal({ campaign, onClose }) {
 
 function Message({ message, onAction }) {
   const isUser = message.role === "user";
+  const workflowStatusLabel = {
+    plan_ready: "待確認建立",
+    draft_created: "草稿已建立",
+    sent: "已發送",
+  }[message.workflow?.status] || "待確認";
   return (
     <article className={`message-row ${isUser ? "message-user" : "message-assistant"}`}>
       {!isUser && <div className="avatar avatar-ai" aria-hidden="true">AI</div>}
@@ -386,7 +457,7 @@ function Message({ message, onAction }) {
             {message.workflow && (
               <div className="workflow-progress" data-testid="workflow-progress">
                 <span>活動規劃進度</span>
-                <strong>第 {message.workflow.revision} 版 · 待確認</strong>
+                <strong>第 {message.workflow.revision} 版 · {workflowStatusLabel}</strong>
               </div>
             )}
             <ActionList actions={message.actions} onAction={(action) => onAction(action, message)} />
@@ -469,22 +540,7 @@ export default function App() {
       if (nextConversationId) {
         window.sessionStorage.setItem(CONVERSATION_STORAGE_KEY, nextConversationId);
       }
-      setMessages((current) => [
-        ...current,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          text: payload?.reply?.text || "API 已完成，但沒有文字回覆。",
-          cards: payload?.reply?.cards || [],
-          actions: payload?.reply?.actions || [],
-          files: payload?.reply?.files || [],
-          charts: payload?.reply?.charts || [],
-          reports: payload?.reply?.reports || [],
-          workflow: payload?.workflow || null,
-          confidence: payload?.reply?.confidence,
-          intent: payload?.resolved_intent?.task || payload?.status || "完成",
-        },
-      ]);
+      setMessages((current) => [...current, messageFromAgentPayload(payload)]);
     } catch (error) {
       setMessages((current) => [
         ...current,
@@ -507,10 +563,70 @@ export default function App() {
   }
 
   async function handleAction(action, message) {
+    if (action.type === "create_campaign_draft") {
+      const actionConversationId = message.conversationId || conversationId;
+      if (!actionConversationId) return;
+      if (!window.confirm("確認建立這份 CRM 活動草稿嗎？建立後仍需確認才會發送優惠券。")) return;
+      setLoading(true);
+      try {
+        const payload = await createCampaignDraft(actionConversationId);
+        setMessages((current) => [
+          ...current.map((item) => item.id === message.id
+            ? { ...item, actions: item.actions.filter((itemAction) => itemAction.type !== "create_campaign_draft") }
+            : item),
+          messageFromAgentPayload(payload),
+        ]);
+      } catch (error) {
+        setMessages((current) => [
+          ...current,
+          {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            text: error instanceof Error ? error.message : "目前無法建立活動草稿。",
+            cards: [], actions: [], files: [], charts: [], reports: [], workflow: null,
+            error: true, intent: "建立失敗", conversationId: actionConversationId,
+          },
+        ]);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+    if (action.type === "send_coupon") {
+      const actionConversationId = message.conversationId || conversationId;
+      const campaignId = action.payload?.campaign_id;
+      if (!actionConversationId || !campaignId) return;
+      if (!window.confirm("確認發送優惠券嗎？這會透過 CRM 建立本次活動的優惠券。")) return;
+      setLoading(true);
+      try {
+        const payload = await sendCampaignCoupon(campaignId, actionConversationId);
+        setMessages((current) => [
+          ...current.map((item) => item.id === message.id
+            ? { ...item, actions: item.actions.filter((itemAction) => itemAction.type !== "send_coupon") }
+            : item),
+          messageFromAgentPayload(payload),
+        ]);
+      } catch (error) {
+        setMessages((current) => [
+          ...current,
+          {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            text: error instanceof Error ? error.message : "目前無法發送優惠券。",
+            cards: [], actions: [], files: [], charts: [], reports: [], workflow: null,
+            error: true, intent: "發送失敗", conversationId: actionConversationId,
+          },
+        ]);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
     if (action.type === "open_campaign") {
       const campaignId = action.payload?.campaign_id || "—";
       setActiveCampaign({
-        card: message.cards?.find((card) => card.type === "marketing_plan"),
+        card: message.cards?.find((card) => card.type === "marketing_plan")
+          || message.cards?.find((card) => card.type === "campaign_performance"),
         campaignId,
         loading: true,
       });
