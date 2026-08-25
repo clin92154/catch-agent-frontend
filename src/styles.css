@@ -141,9 +141,10 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, summary:focus-vis
 .insight-card-context_evidence .insight-value b { color: var(--orange-dark); }
 .insight-card-strategy_research { border-color: #d9c8ef; background: #fbf8ff; }
 .insight-card-strategy_research .insight-card-header strong { color: #6d3e9a; }
+.insight-card-strategy_research .insight-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
 @media (max-width: 620px) {
-  .insight-grid { grid-template-columns: 1fr; }
+  .insight-grid, .insight-card-strategy_research .insight-grid { grid-template-columns: 1fr; }
   .insight-item { border-right: 0; border-bottom: 1px solid var(--border); }
   .insight-item:last-child { border-bottom: 0; }
 }

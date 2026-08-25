@@ -429,7 +429,9 @@ function CampaignDraftModal({ campaign, onClose }) {
 function Message({ message, onAction }) {
   const isUser = message.role === "user";
   const workflowStatusLabel = {
+    historical_analyzed: "去年檔期已分析",
     plan_ready: "待確認建立",
+    research_ready: "研究設定待確認",
     draft_created: "草稿已建立",
     sent: "已發送",
   }[message.workflow?.status] || "待確認";
