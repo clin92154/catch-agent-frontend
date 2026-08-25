@@ -8,6 +8,7 @@ const INSIGHT_PROMPT = "分析本週營收、Top 5 商品、門市與通路表�
 const MEMBER_PROMPT = "找出最近最可能購買的會員。";
 const PERFORMANCE_PROMPT = "分析活動 1 是否成功，以及下一次怎麼改善。";
 const STRATEGY_RESEARCH_PROMPT = "研究活動 1，提前四週和提前兩週哪個效果好？";
+const HISTORICAL_RESEARCH_PROMPT = "先分析去年母親節，再規劃今年活動，並比較提前四週與提前兩週。";
 const CONVERSATION_STORAGE_KEY = "catch-agent-conversation-id";
 
 const suggestionGroups = [
@@ -15,8 +16,8 @@ const suggestionGroups = [
     label: "AI 行銷洞察",
     items: [
       INSIGHT_PROMPT,
+      "上週哪個商品最好？",
       "本週哪個門市表現最好？",
-      "比較本週各通路的營收表現。",
     ],
   },
   {
@@ -24,20 +25,29 @@ const suggestionGroups = [
     items: [
       MEMBER_PROMPT,
       "找出最近可能流失的會員。",
-      "找出值得優先經營的高價值會員。",
+      "預覽蛋糕且已綁定 LINE 的高價值會員。",
     ],
   },
   {
     label: "AI 活動規劃",
     items: [
       MARKETING_PROMPT,
-      "幫我規劃一個父親節蛋糕活動。",
+      "幫我規劃今年母親節蛋糕活動，提供 LINE 會員專屬優惠。",
       "針對高價值會員設計 LINE 專屬優惠。",
     ],
   },
   {
     label: "AI 成效分析",
-    items: [PERFORMANCE_PROMPT, "查看這次活動的核銷率與活動營收。", STRATEGY_RESEARCH_PROMPT],
+    items: [PERFORMANCE_PROMPT, "分析活動 1 的核銷率與 30 天回購。", "分析活動 1 的活動營收與客群效果。"],
+  },
+  {
+    label: "AI 行銷研究",
+    items: [
+      HISTORICAL_RESEARCH_PROMPT,
+      "根據去年分析規劃今年母親節活動。",
+      "建立今年活動的策略研究設定。",
+      STRATEGY_RESEARCH_PROMPT,
+    ],
   },
 ];
 
@@ -247,21 +257,40 @@ function ChartList({ charts = [] }) {
 
 function CardList({ cards = [] }) {
   if (!cards.length) return null;
+  const noteLabels = new Set(["活動說明", "規劃發想", "決策重點"]);
+  const cardEyebrows = {
+    marketing_plan: "規劃摘要",
+    campaign_performance: "活動成果",
+    strategy_research: "研究摘要",
+    marketing_insight: "營運摘要",
+    member_analysis: "會員摘要",
+  };
   return (
     <div className="insight-card-list" aria-label="營運分析圖卡">
-      {cards.map((card, cardIndex) => (
-        <section
-          className={`insight-card insight-card-${card.type}`}
-          key={`${card.type}-${card.title}-${cardIndex}`}
-        >
-          <header className="insight-card-header">
-            <strong>{card.title}</strong>
-          </header>
-          {card.description && <p className="insight-card-description">{card.description}</p>}
-          <div className="insight-grid">
-            {(card.items || []).map((item, itemIndex) => (
+      {cards.map((card, cardIndex) => {
+        const items = card.items || [];
+        const primaryItems = card.type === "marketing_plan"
+          ? items.filter((item) => !noteLabels.has(item.label))
+          : items;
+        const noteItems = card.type === "marketing_plan"
+          ? items.filter((item) => noteLabels.has(item.label))
+          : [];
+        return (
+          <section
+            className={`insight-card insight-card-${card.type}`}
+            key={`${card.type}-${card.title}-${cardIndex}`}
+          >
+            <header className="insight-card-header">
+              <div>
+                <span className="insight-card-eyebrow">{cardEyebrows[card.type] || "CRM 資訊"}</span>
+                <strong>{card.title}</strong>
+              </div>
+            </header>
+            {card.description && <p className="insight-card-description">{card.description}</p>}
+            {primaryItems.length > 0 && <div className="insight-grid">
+            {primaryItems.map((item, itemIndex) => (
               <article
-                className="insight-item"
+                className={`insight-item insight-item-${item.status || "neutral"}`}
                 data-status={item.status}
                 data-trend={item.trend}
                 key={`${item.label}-${itemIndex}`}
@@ -271,10 +300,10 @@ function CardList({ cards = [] }) {
                   {item.change_pct && <span>{item.change_pct}</span>}
                 </div>
                 <div className="insight-value">
-                  <b>{item.value}</b>
+                  <b>{item.value ?? "資料尚未提供"}</b>
                   {item.unit && <small>{item.unit}</small>}
                 </div>
-                {item.comparison_value && (
+                {item.comparison_value !== undefined && item.comparison_value !== null && item.comparison_value !== "" && (
                   <p className="insight-comparison">
                     {item.comparison_label || "比較期"}：{item.comparison_value}
                   </p>
@@ -282,9 +311,20 @@ function CardList({ cards = [] }) {
                 {item.description && <p>{item.description}</p>}
               </article>
             ))}
-          </div>
-        </section>
-      ))}
+            </div>}
+            {noteItems.length > 0 && (
+              <div className="insight-notes" aria-label="活動規劃說明">
+                {noteItems.map((item) => (
+                  <div className="insight-note" key={item.label}>
+                    <span>{item.label}</span>
+                    <p>{item.value ?? "資料尚未提供"}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        );
+      })}
     </div>
   );
 }
@@ -292,24 +332,39 @@ function CardList({ cards = [] }) {
 function ActionList({ actions = [], onAction }) {
   if (!actions.length) return null;
   return (
-    <div className="message-actions" aria-label="後續操作">
-      {actions.map((action, index) => (
-        <button
-          type="button"
-          className={`message-action message-action-${action.type}`}
-          key={`${action.type}-${action.label}-${index}`}
-          data-action-type={action.type}
-          onClick={() => onAction(action)}
-        >
-          {action.label}
-          <span aria-hidden="true">{action.type === "continue_chat" ? "＋" : "↗"}</span>
-        </button>
-      ))}
+    <div className="message-actions-wrap" aria-label="後續操作">
+      <div className="message-actions-heading">
+        <strong>下一步</strong>
+        <span>請選擇要繼續的操作</span>
+      </div>
+      <div className="message-actions">
+        {actions.map((action, index) => (
+          <button
+            type="button"
+            className={`message-action message-action-${action.type}`}
+            key={`${action.type}-${action.label}-${index}`}
+            data-action-type={action.type}
+            onClick={() => onAction(action)}
+          >
+            <span>{action.label}</span>
+            <span aria-hidden="true">{action.type === "continue_chat" ? "＋" : "↗"}</span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
 
 function ReportPanel({ report, onClose }) {
+  useEffect(() => {
+    if (!report) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [report, onClose]);
+
   if (!report) return null;
   return (
     <div className="report-modal" role="presentation">
@@ -325,23 +380,7 @@ function ReportPanel({ report, onClose }) {
         </header>
         <div className="report-modal-body">
           {(report.sections || []).map((section, index) => (
-            <section className="report-section" key={`${section.title}-${index}`}>
-              <h3>{section.title}</h3>
-              <div className="report-table-wrap">
-                <table>
-                  <thead>
-                    <tr>{(section.columns || []).map((column) => <th key={column}>{column}</th>)}</tr>
-                  </thead>
-                  <tbody>
-                    {(section.rows || []).map((row, rowIndex) => (
-                      <tr key={`${section.title}-${rowIndex}`}>
-                        {row.map((value, cellIndex) => <td key={`${rowIndex}-${cellIndex}`}>{value}</td>)}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
+            <ReportSection section={section} key={`${section.title}-${index}`} />
           ))}
         </div>
       </section>
@@ -349,8 +388,78 @@ function ReportPanel({ report, onClose }) {
   );
 }
 
+function ReportSection({ section }) {
+  const columns = section.columns || [];
+  const rows = section.rows || [];
+  const isKeyValue = columns.length === 2 && rows.length <= 12;
+  const isList = columns.length === 1;
+  return (
+    <section className={`report-section ${isKeyValue ? "report-section-key-value" : ""} ${isList ? "report-section-list" : ""}`}>
+      <h3>{section.title}</h3>
+      {isKeyValue ? (
+        <div className="report-kpi-grid">
+          {rows.map((row, rowIndex) => (
+            <div className="report-kpi" key={`${section.title}-${rowIndex}`}>
+              <span>{row[0] || columns[0]}</span>
+              <strong>{row[1] || "資料尚未提供"}</strong>
+            </div>
+          ))}
+        </div>
+      ) : isList ? (
+        <ul className="report-list">
+          {rows.map((row, rowIndex) => (
+            <li key={`${section.title}-${rowIndex}`}>{row[0] || "資料尚未提供"}</li>
+          ))}
+        </ul>
+      ) : (
+        <div className="report-table-wrap">
+          <table>
+            <thead>
+              <tr>{columns.map((column) => <th key={column}>{column}</th>)}</tr>
+            </thead>
+            <tbody>
+              {rows.map((row, rowIndex) => (
+                <tr key={`${section.title}-${rowIndex}`}>
+                  {row.map((value, cellIndex) => <td key={`${rowIndex}-${cellIndex}`}>{value || "—"}</td>)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function cardValue(card, label) {
   return card?.items?.find((item) => item.label === label)?.value || "—";
+}
+
+function CampaignField({ label, value, emphasis = false }) {
+  return (
+    <div className={`campaign-field ${emphasis ? "campaign-field-emphasis" : ""}`}>
+      <span>{label}</span>
+      <strong>{value ?? "資料尚未提供"}</strong>
+    </div>
+  );
+}
+
+function CampaignNotes({ card }) {
+  const notes = ["活動說明", "規劃發想", "決策重點"]
+    .map((label) => ({ label, value: cardValue(card, label) }))
+    .filter(({ value }) => value !== "—");
+  if (!notes.length) return null;
+  return (
+    <div className="campaign-modal-notes">
+      <h3>規劃說明</h3>
+      {notes.map((note) => (
+        <div className="campaign-modal-note" key={note.label}>
+          <span>{note.label}</span>
+          <p>{note.value}</p>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function CampaignDraftModal({ campaign, onClose }) {
@@ -371,46 +480,49 @@ function CampaignDraftModal({ campaign, onClose }) {
           <div>
             <span className="eyebrow">活動規劃</span>
             <h2 id="campaign-modal-title">{isPerformanceCard ? "活動成效摘要" : "活動草稿詳情"}</h2>
+            <p>{isPerformanceCard ? "快速檢視目前活動成果與後續查看位置。" : "確認活動條件後，再決定是否建立 CRM 草稿。"}</p>
           </div>
-          <button className="campaign-modal-close" type="button" aria-label="關閉活動草稿" onClick={onClose}>×</button>
+          <div className="campaign-modal-header-actions">
+            <span className={`modal-status modal-status-${statusLabel === "已發送" ? "done" : "pending"}`}>{statusLabel}</span>
+            <button className="campaign-modal-close" type="button" aria-label="關閉活動草稿" onClick={onClose}>×</button>
+          </div>
         </header>
-        <div className="campaign-modal-grid">
+        <div className="campaign-modal-body">
+          <div className="campaign-modal-grid">
           {isPerformanceCard ? (
             <>
-              <div><span>CRM 草稿</span><strong>{campaignId}</strong></div>
-              <div><span>本次發送</span><strong>{cardValue(card, "本次發送")}</strong></div>
-              <div><span>已核銷</span><strong>{cardValue(card, "已核銷")}</strong></div>
-              <div><span>核銷率</span><strong>{cardValue(card, "核銷率")}</strong></div>
-              <div><span>目前狀態</span><strong>{statusLabel}</strong></div>
-              <div><span>活動營收</span><strong>{metrics?.estimated_revenue ?? "資料尚未提供"}</strong></div>
+              <CampaignField label="CRM 草稿" value={campaignId} emphasis />
+              <CampaignField label="本次發送" value={cardValue(card, "本次發送")} />
+              <CampaignField label="已核銷" value={cardValue(card, "已核銷")} />
+              <CampaignField label="核銷率" value={cardValue(card, "核銷率")} />
+              <CampaignField label="目前狀態" value={statusLabel} />
+              <CampaignField label="活動營收" value={metrics?.estimated_revenue ?? "資料尚未提供"} />
             </>
           ) : (
             <>
-              <div><span>活動主題</span><strong>{cardValue(card, "活動主題")}</strong></div>
-              <div><span>活動說明</span><strong>{cardValue(card, "活動說明")}</strong></div>
-              <div><span>規劃發想</span><strong>{cardValue(card, "規劃發想")}</strong></div>
-              <div><span>決策重點</span><strong>{cardValue(card, "決策重點")}</strong></div>
-              <div><span>目標客群</span><strong>{cardValue(card, "目標客群")}</strong></div>
-              <div><span>主推商品</span><strong>{cardValue(card, "主推商品")}</strong></div>
-              <div><span>預估客群</span><strong>{audienceValue}</strong></div>
-              <div><span>優惠內容</span><strong>{cardValue(card, "優惠內容")}</strong></div>
-              <div><span>建議通路</span><strong>{cardValue(card, "建議通路")}</strong></div>
-              <div><span>活動草稿編號</span><strong>{campaignId}</strong></div>
-              <div><span>目前狀態</span><strong>{statusLabel}</strong></div>
-              <div><span>已發送優惠</span><strong>{metrics ? `${metrics.issued_count} 人` : "—"}</strong></div>
-              <div><span>已使用優惠</span><strong>{metrics ? `${metrics.redeemed_count} 人` : "—"}</strong></div>
+              <CampaignField label="活動主題" value={cardValue(card, "活動主題")} emphasis />
+              <CampaignField label="目標客群" value={cardValue(card, "目標客群")} />
+              <CampaignField label="主推商品" value={cardValue(card, "主推商品")} />
+              <CampaignField label="預估客群" value={audienceValue} />
+              <CampaignField label="優惠內容" value={cardValue(card, "優惠內容")} />
+              <CampaignField label="建議通路" value={cardValue(card, "建議通路")} />
+              <CampaignField label="活動草稿編號" value={campaignId} />
+              <CampaignField label="目前狀態" value={statusLabel} />
+              <CampaignField label="已發送優惠" value={metrics ? `${metrics.issued_count} 人` : "—"} />
+              <CampaignField label="已使用優惠" value={metrics ? `${metrics.redeemed_count} 人` : "—"} />
             </>
           )}
-        </div>
-        <div className="campaign-modal-status">
+          </div>
+          {!isPerformanceCard && <CampaignNotes card={card} />}
+          <div className="campaign-modal-status">
           {loading && "正在讀取活動最新資料。"}
           {!loading && error && "目前無法讀取最新活動狀態，先顯示本次規劃摘要。"}
           {!loading && !error && metrics?.campaign_status === "draft" && "草稿已建立，請至 CRM 後台確認是否發送優惠券。"}
           {!loading && !error && metrics?.campaign_status === "executed" && "CRM 已完成發送，可查看後續核銷與營收成效。"}
           {!loading && !error && !metrics?.campaign_status && "目前尚未取得 CRM 活動狀態。"}
-        </div>
-        {CRM_ADMIN_URL && (
-          <div className="campaign-modal-footer">
+          </div>
+          {CRM_ADMIN_URL && (
+            <div className="campaign-modal-footer">
             <a
               className="message-action message-action-open_campaign"
               href={`${CRM_ADMIN_URL}/staff/automation/ai-marketing?campaign_id=${encodeURIComponent(campaignId)}`}
@@ -419,8 +531,9 @@ function CampaignDraftModal({ campaign, onClose }) {
             >
               開啟 CRM 後台
             </a>
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </section>
     </div>
   );
@@ -492,6 +605,11 @@ export default function App() {
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  useEffect(() => {
+    document.body.classList.toggle("modal-open", Boolean(activeCampaign || activeReport));
+    return () => document.body.classList.remove("modal-open");
+  }, [activeCampaign, activeReport]);
 
   useEffect(() => {
     if (!conversationId) {
@@ -677,7 +795,7 @@ export default function App() {
         </div>
 
         <section className="sidebar-section">
-          <p className="sidebar-label">快速提問</p>
+          <p className="sidebar-label">快速測試</p>
           {suggestionGroups.map((group, groupIndex) => (
             <details className="suggestion-group" key={group.label} open={groupIndex === 0}>
               <summary>
