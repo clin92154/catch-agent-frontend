@@ -1,4 +1,4 @@
-FROM node:20-alpine
+FROM node:20-alpine AS build
 
 WORKDIR /app
 
@@ -6,9 +6,13 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
-RUN chown -R node:node /app
+RUN npm run build
 
-USER node
-EXPOSE 5174
+FROM nginx:1.27-alpine
 
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/dist /usr/share/nginx/html
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]
