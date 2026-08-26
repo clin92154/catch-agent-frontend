@@ -33,10 +33,11 @@ docker compose ps
 
 開啟：
 
-| 功能 | URL |
-|---|---|
-| React 聊天室 | `http://localhost:5173` |
-| Swagger | `http://localhost:8001/docs` |
+
+| 功能           | URL                            |
+| ---------------- | -------------------------------- |
+| React 聊天室   | `http://localhost:5173`        |
+| Swagger        | `http://localhost:8001/docs`   |
 | FastAPI Health | `http://localhost:8001/health` |
 
 前端 container 透過 Vite proxy 的 `http://app:8000` 連接 FastAPI；瀏覽器不需要直接跨網域呼叫 container service name。
