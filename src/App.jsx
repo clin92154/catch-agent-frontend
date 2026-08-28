@@ -109,9 +109,26 @@ async function askAgent(message, conversationId) {
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(payload?.error?.message || `API 回傳 ${response.status}`);
+    throw apiError(payload, response.status);
   }
   return payload;
+}
+
+function apiError(payload, status) {
+  const apiMessage = payload?.error?.message || `API 回傳 ${status}`;
+  const details = payload?.error?.details || {};
+  const diagnostic = details.crm_message;
+  const diagnosticParts = [
+    details.crm_code,
+    details.crm_status_code ? `HTTP ${details.crm_status_code}` : null,
+  ].filter(Boolean);
+  const suffix = diagnostic && diagnostic !== apiMessage
+    ? `\n開發診斷：${diagnosticParts.length ? `${diagnosticParts.join(" / ")}｜` : ""}${diagnostic}`
+    : "";
+  const error = new Error(`${apiMessage}${suffix}`);
+  error.code = payload?.error?.code;
+  error.details = details;
+  return error;
 }
 
 async function createCampaignDraft(conversationId) {
@@ -122,7 +139,7 @@ async function createCampaignDraft(conversationId) {
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(payload?.error?.message || `API 回傳 ${response.status}`);
+    throw apiError(payload, response.status);
   }
   return payload;
 }
@@ -135,7 +152,7 @@ async function sendCampaignCoupon(campaignId, conversationId) {
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(payload?.error?.message || `API 回傳 ${response.status}`);
+    throw apiError(payload, response.status);
   }
   return payload;
 }
@@ -144,7 +161,7 @@ async function getCampaignMetrics(campaignId) {
   const response = await fetch(`${API_BASE_URL}/api/v1/agent/campaigns/${encodeURIComponent(campaignId)}/metrics`);
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(payload?.error?.message || `API 回傳 ${response.status}`);
+    throw apiError(payload, response.status);
   }
   return payload?.data || {};
 }
@@ -172,6 +189,7 @@ function messageFromSavedPayload(item, index) {
     files: payload?.reply?.files || [],
     charts: payload?.reply?.charts || [],
     reports: payload?.reply?.reports || [],
+    progress: payload?.reply?.progress || [],
     workflow: payload?.workflow || null,
     confidence: payload?.reply?.confidence,
     intent: payload?.resolved_intent?.task || payload?.status || "完成",
@@ -189,6 +207,7 @@ function messageFromAgentPayload(payload) {
     files: payload?.reply?.files || [],
     charts: payload?.reply?.charts || [],
     reports: payload?.reply?.reports || [],
+    progress: payload?.reply?.progress || [],
     workflow: payload?.workflow || null,
     confidence: payload?.reply?.confidence,
     intent: payload?.resolved_intent?.task || payload?.status || "完成",
@@ -288,10 +307,16 @@ function CardList({ cards = [] }) {
             </header>
             {card.description && <p className="insight-card-description">{card.description}</p>}
             {primaryItems.length > 0 && <div className="insight-grid">
-            {primaryItems.map((item, itemIndex) => (
+            {primaryItems.map((item, itemIndex) => {
+              const value = item.value ?? "資料尚未提供";
+              const valueText = String(value);
+              const isLongValue = valueText.length >= 8 || valueText.includes("\n");
+              const isUnavailable = item.status === "unavailable" || valueText === "資料不可用" || valueText === "資料尚未提供";
+              return (
               <article
-                className={`insight-item insight-item-${item.status || "neutral"}`}
+                className={`insight-item insight-item-${item.status || "neutral"}${isLongValue ? " insight-item-long" : ""}${isUnavailable ? " insight-item-unavailable" : ""}`}
                 data-status={item.status}
+                data-value-length={valueText.length}
                 data-trend={item.trend}
                 key={`${item.label}-${itemIndex}`}
               >
@@ -300,7 +325,7 @@ function CardList({ cards = [] }) {
                   {item.change_pct && <span>{item.change_pct}</span>}
                 </div>
                 <div className="insight-value">
-                  <b>{item.value ?? "資料尚未提供"}</b>
+                  <b>{value}</b>
                   {item.unit && <small>{item.unit}</small>}
                 </div>
                 {item.comparison_value !== undefined && item.comparison_value !== null && item.comparison_value !== "" && (
@@ -310,7 +335,8 @@ function CardList({ cards = [] }) {
                 )}
                 {item.description && <p>{item.description}</p>}
               </article>
-            ))}
+              );
+            })}
             </div>}
             {noteItems.length > 0 && (
               <div className="insight-notes" aria-label="活動規劃說明">
@@ -569,6 +595,22 @@ function Message({ message, onAction }) {
         {!isUser && (
           <>
             <CardList cards={message.cards} />
+            {message.progress?.length > 0 && (
+              <div className="agent-progress" data-testid="agent-progress">
+                <div className="agent-progress-heading">
+                  <strong>分析進度</strong>
+                  <span>已完成可驗證步驟</span>
+                </div>
+                <ol>
+                  {message.progress.map((step) => (
+                    <li key={step.key} className={`agent-progress-${step.status}`}>
+                      <span aria-hidden="true">{step.status === "completed" ? "✓" : "·"}</span>
+                      <span>{step.label}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
             {message.workflow && (
               <div className="workflow-progress" data-testid="workflow-progress">
                 <span>活動規劃進度</span>

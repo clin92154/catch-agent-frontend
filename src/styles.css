@@ -1,8 +1,9 @@
 :root {
-  font-family: Inter, "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+  font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", Inter, system-ui, sans-serif;
   color: #2f3030;
   background: #f7f8fa;
   font-synthesis: none;
+  text-rendering: optimizeLegibility;
   --orange: #ff6b00;
   --orange-dark: #e8732a;
   --coral: #d64535;
@@ -35,7 +36,7 @@
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; min-width: 320px; min-height: 100vh; }
+body { margin: 0; min-width: 320px; min-height: 100vh; -webkit-font-smoothing: antialiased; }
 button, textarea { font: inherit; }
 button { cursor: pointer; }
 button:focus-visible, a:focus-visible, textarea:focus-visible, summary:focus-visible {
@@ -102,6 +103,15 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, summary:focus-vis
 .message-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .workflow-progress { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 10px 13px; border: 1px solid #f0d5bd; border-radius: 10px; color: var(--text-secondary); background: #fffaf6; font-size: 12px; }
 .workflow-progress strong { color: var(--orange-dark); font-size: 12px; }
+.agent-progress { display: grid; gap: 8px; width: 100%; padding: 12px 13px; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
+.agent-progress-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.agent-progress-heading strong { color: var(--text); font-size: 12px; }
+.agent-progress-heading span { color: var(--text-muted); font-size: 11px; }
+.agent-progress ol { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.agent-progress li { display: flex; align-items: center; gap: 8px; color: var(--text-secondary); font-size: 12px; line-height: 1.5; }
+.agent-progress li > span:first-child { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; color: #fff; background: var(--green); font-size: 11px; font-weight: 800; }
+.agent-progress li.agent-progress-running > span:first-child { color: var(--orange-dark); background: var(--orange-soft); }
+.agent-progress li.agent-progress-blocked > span:first-child { color: var(--red); background: var(--red-soft); }
 .message-action { display: inline-flex; align-items: center; gap: 8px; padding: 9px 12px; border: 1px solid var(--purple-border); border-radius: 10px; color: var(--purple-dark); background: var(--purple-soft); font-size: 12px; font-weight: 800; transition: 160ms ease; }
 .message-action:hover { border-color: var(--purple); background: #ebe7ff; transform: translateY(-1px); }
 .message-action span { font-size: 15px; line-height: 1; }
@@ -123,14 +133,14 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, summary:focus-vis
 .insight-card-header { padding: 14px 16px 10px; }
 .insight-card-header strong { color: var(--text); font-size: 14px; }
 .insight-card-description { margin: 0 16px 12px; color: var(--text-secondary); font-size: 12px; line-height: 1.6; }
-.insight-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin: 0 14px 14px; overflow: hidden; border: 1px solid var(--border); border-radius: 9px; background: #fff; }
-.insight-item { min-width: 0; padding: 14px; border-right: 1px solid var(--border); background: #fff; }
+.insight-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1px; margin: 0 14px 14px; overflow: hidden; border: 1px solid var(--border); border-radius: 9px; background: var(--border); }
+.insight-item { min-width: 0; padding: 14px; background: #fff; }
 .insight-item:last-child { border-right: 0; }
 .insight-item-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 .insight-item-heading strong { font-size: 12px; line-height: 1.5; }
 .insight-item-heading span { flex: 0 0 auto; color: var(--coral); font-size: 12px; font-weight: 800; }
 .insight-value { display: flex; align-items: baseline; gap: 5px; margin-top: 8px; }
-.insight-value b { overflow-wrap: anywhere; white-space: pre-line; line-height: 1.55; color: var(--coral); font-size: 21px; }
+.insight-value b { overflow-wrap: anywhere; white-space: pre-line; line-height: 1.4; color: var(--text); font-size: 21px; font-variant-numeric: tabular-nums; text-wrap: balance; }
 .insight-value small, .insight-item > p { color: var(--text-secondary); font-size: 11px; }
 .insight-item > p { margin-top: 7px; line-height: 1.55; }
 .insight-comparison { padding-top: 7px; border-top: 1px dashed var(--border); }
@@ -333,4 +343,44 @@ body.modal-open { overflow: hidden; }
   .campaign-modal-notes { margin-inline: 18px; }
   .report-kpi-grid { grid-template-columns: 1fr; }
   .report-section table { min-width: 460px; }
+}
+
+/* 資訊卡一致的閱讀節奏：短指標並排，長內容獨立一列。 */
+.insight-card-header strong,
+.insight-item-heading strong,
+.insight-note span,
+.campaign-field strong,
+.report-section h3 { text-wrap: balance; }
+.insight-card-header strong { display: block; font-size: 16px; line-height: 1.35; }
+.insight-card-eyebrow { margin-bottom: 6px; font-size: 11px; letter-spacing: 0.06em; }
+.insight-card-description { font-size: 13px; line-height: 1.65; }
+.insight-card-marketing_insight .insight-grid,
+.insight-card-member_analysis .insight-grid,
+.insight-card-campaign_performance .insight-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.insight-item { min-height: 104px; border: 0; }
+.insight-item-heading strong { color: var(--text-secondary); font-size: 13px; line-height: 1.45; }
+.insight-item-heading span { font-variant-numeric: tabular-nums; }
+.insight-value { min-width: 0; margin-top: 10px; }
+.insight-value b { max-width: 100%; font-size: clamp(18px, 2.2vw, 25px); letter-spacing: -0.02em; }
+.insight-item[data-status="info"] .insight-value b,
+.insight-item[data-status="normal"] .insight-value b { color: var(--text); }
+.insight-item[data-status="anomaly"] .insight-value b { color: var(--red); }
+.insight-item[data-status="unavailable"] .insight-value b,
+.insight-item-unavailable .insight-value b { color: var(--text-secondary); font-size: 17px; letter-spacing: 0; }
+.insight-item-long { grid-column: 1 / -1; min-height: 88px; }
+.insight-item-long .insight-value b { max-width: 68ch; line-height: 1.45; }
+.insight-card-marketing_plan .insight-item-long { grid-column: 1 / -1; }
+.insight-card-marketing_plan .insight-value b,
+.insight-card-strategy_research .insight-value b { font-size: 16px; }
+.insight-card-anomaly_list .insight-item { min-height: 76px; }
+.insight-card-anomaly_list .insight-item-long .insight-value b { font-size: 17px; }
+
+@media (max-width: 620px) {
+  .insight-card-marketing_insight .insight-grid,
+  .insight-card-member_analysis .insight-grid,
+  .insight-card-campaign_performance .insight-grid { grid-template-columns: 1fr; }
+  .insight-item { min-height: 88px; padding: 13px; }
+  .insight-item-long { grid-column: auto; }
+  .insight-value b { font-size: 20px; }
+  .insight-card-header { padding-inline: 14px; }
 }
