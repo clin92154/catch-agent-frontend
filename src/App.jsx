@@ -187,6 +187,7 @@ function messageFromSavedPayload(item, index) {
     confidence: payload?.reply?.confidence,
     intent: payload?.resolved_intent?.task || payload?.status || "完成",
     conversationId: payload?.conversation_id || null,
+    audienceMembers: payload?.audience_members || [],
   };
 }
 
@@ -205,6 +206,7 @@ function messageFromAgentPayload(payload) {
     confidence: payload?.reply?.confidence,
     intent: payload?.resolved_intent?.task || payload?.status || "完成",
     conversationId: payload?.conversation_id || null,
+    audienceMembers: payload?.audience_members || [],
   };
 }
 
@@ -267,7 +269,41 @@ function ChartList({ charts = [] }) {
   );
 }
 
-function CardList({ cards = [] }) {
+function AudiencePreviewCard({ card, audienceMembers = [], onViewMembers }) {
+  const count = cardValue(card, "符合會員");
+  const criteria = cardValue(card, "篩選條件");
+  const status = cardValue(card, "資料狀態");
+  return (
+    <>
+      <div className="audience-summary-grid">
+        <div className="audience-summary-count">
+          <span>符合條件的會員</span>
+          <strong>{count}</strong>
+          <small>已依目前條件完成預覽</small>
+        </div>
+        <div className="audience-summary-status">
+          <span>資料狀態</span>
+          <strong>{status}</strong>
+          <small>尚未建立活動或發送訊息</small>
+        </div>
+      </div>
+      <div className="audience-criteria">
+        <span>這群會員符合</span>
+        <strong>{criteria}</strong>
+      </div>
+      {audienceMembers.length > 0 && (
+        <div className="audience-card-footer">
+          <span>目前可查看前 {audienceMembers.length} 位去識別化摘要</span>
+          <button type="button" className="audience-details-button" onClick={onViewMembers}>
+            查看會員詳情 ↗
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
+function CardList({ cards = [], audienceMembers = [], onViewAudienceMembers }) {
   if (!cards.length) return null;
   const noteLabels = new Set(["活動說明", "規劃發想", "決策重點"]);
   const cardEyebrows = {
@@ -299,7 +335,13 @@ function CardList({ cards = [] }) {
               </div>
             </header>
             {card.description && <p className="insight-card-description">{card.description}</p>}
-            {primaryItems.length > 0 && <div className="insight-grid">
+            {card.type === "audience_preview" ? (
+              <AudiencePreviewCard
+                card={card}
+                audienceMembers={audienceMembers}
+                onViewMembers={onViewAudienceMembers}
+              />
+            ) : primaryItems.length > 0 && <div className="insight-grid">
             {primaryItems.map((item, itemIndex) => {
               const value = item.value ?? "資料尚未提供";
               const valueText = String(value);
@@ -370,6 +412,45 @@ function ActionList({ actions = [], onAction }) {
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+function AudienceMembersModal({ members = [], onClose }) {
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
+  if (!members.length) return null;
+  return (
+    <div className="audience-modal" role="presentation">
+      <button className="audience-modal-backdrop" type="button" aria-label="關閉會員詳情" onClick={onClose} />
+      <section className="audience-modal-panel" role="dialog" aria-modal="true" aria-labelledby="audience-modal-title">
+        <header className="audience-modal-header">
+          <div>
+            <span className="eyebrow">客群摘要</span>
+            <h2 id="audience-modal-title">符合條件的會員</h2>
+            <p>以下為去識別化摘要，僅供確認客群組成。</p>
+          </div>
+          <button className="audience-modal-close" type="button" aria-label="關閉會員詳情" onClick={onClose}>×</button>
+        </header>
+        <div className="audience-modal-body">
+          <div className="audience-member-list">
+            {members.map((member) => (
+              <article className="audience-member-row" key={member.member_label}>
+                <strong>{member.member_label}</strong>
+                <span>{member.segment_name || "一般會員"}</span>
+                <span>{["active", "enabled"].includes(member.status) ? "會員狀態：啟用" : `會員狀態：${member.status || "未提供"}`}</span>
+                <span>{member.points == null ? "點數資料未提供" : `目前點數：${Number(member.points).toLocaleString()}`}</span>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
@@ -558,7 +639,7 @@ function CampaignDraftModal({ campaign, onClose }) {
   );
 }
 
-function Message({ message, onAction }) {
+function Message({ message, onAction, onViewAudienceMembers }) {
   const isUser = message.role === "user";
   const workflowStatusLabel = {
     historical_analyzed: "去年檔期已分析",
@@ -587,7 +668,11 @@ function Message({ message, onAction }) {
         </div>
         {!isUser && (
           <>
-            <CardList cards={message.cards} />
+            <CardList
+              cards={message.cards}
+              audienceMembers={message.audienceMembers}
+              onViewAudienceMembers={() => onViewAudienceMembers(message.audienceMembers)}
+            />
             {message.progress?.length > 0 && (
               <div className="agent-progress" data-testid="agent-progress">
                 <div className="agent-progress-heading">
@@ -633,6 +718,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [activeCampaign, setActiveCampaign] = useState(null);
   const [activeReport, setActiveReport] = useState(null);
+  const [activeAudienceMembers, setActiveAudienceMembers] = useState(null);
   const inputRef = useRef(null);
   const endRef = useRef(null);
   const restoreControllerRef = useRef(null);
@@ -642,9 +728,9 @@ export default function App() {
   }, [messages, loading]);
 
   useEffect(() => {
-    document.body.classList.toggle("modal-open", Boolean(activeCampaign || activeReport));
+    document.body.classList.toggle("modal-open", Boolean(activeCampaign || activeReport || activeAudienceMembers));
     return () => document.body.classList.remove("modal-open");
-  }, [activeCampaign, activeReport]);
+  }, [activeCampaign, activeReport, activeAudienceMembers]);
 
   useEffect(() => {
     if (!conversationId) {
@@ -871,6 +957,7 @@ export default function App() {
                 window.sessionStorage.removeItem(CONVERSATION_STORAGE_KEY);
                 setActiveCampaign(null);
                 setActiveReport(null);
+                setActiveAudienceMembers(null);
               }}
             >
               清除對話
@@ -879,7 +966,14 @@ export default function App() {
         </header>
 
         <div className="conversation" aria-live="polite">
-          {messages.map((message) => <Message key={message.id} message={message} onAction={handleAction} />)}
+          {messages.map((message) => (
+            <Message
+              key={message.id}
+              message={message}
+              onAction={handleAction}
+              onViewAudienceMembers={setActiveAudienceMembers}
+            />
+          ))}
           {loading && (
             <div className="message-row message-assistant">
               <div className="avatar avatar-ai">AI</div>
@@ -912,6 +1006,7 @@ export default function App() {
       </section>
       <CampaignDraftModal campaign={activeCampaign} onClose={() => setActiveCampaign(null)} />
       <ReportPanel report={activeReport} onClose={() => setActiveReport(null)} />
+      <AudienceMembersModal members={activeAudienceMembers || []} onClose={() => setActiveAudienceMembers(null)} />
     </main>
   );
 }
