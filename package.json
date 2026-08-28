@@ -15,7 +15,9 @@
     "e2e:marketing": "uv run --with playwright python scripts/e2e_marketing_flow.py",
     "e2e:closed-loop": "uv run --with playwright python scripts/e2e_basic_closed_loop.py",
     "e2e:advisor": "uv run --with playwright python scripts/e2e_marketing_advisor.py",
-    "e2e:interactive-research": "uv run --with playwright python scripts/e2e_interactive_research.py"
+    "e2e:interactive-research": "uv run --with playwright python scripts/e2e_interactive_research.py",
+    "e2e:harness": "uv run --with playwright python scripts/e2e_harness_workflow.py",
+    "e2e:openai-marketing": "uv run --with playwright python scripts/e2e_openai_marketing_scenarios.py"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.7.0",

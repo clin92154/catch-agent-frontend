@@ -133,7 +133,7 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, summary:focus-vis
 .insight-card-header { padding: 14px 16px 10px; }
 .insight-card-header strong { color: var(--text); font-size: 14px; }
 .insight-card-description { margin: 0 16px 12px; color: var(--text-secondary); font-size: 12px; line-height: 1.6; }
-.insight-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1px; margin: 0 14px 14px; overflow: hidden; border: 1px solid var(--border); border-radius: 9px; background: var(--border); }
+.insight-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0; margin: 0 14px 14px; overflow: hidden; border: 1px solid var(--border); border-radius: 9px; background: #fff; }
 .insight-item { min-width: 0; padding: 14px; background: #fff; }
 .insight-item:last-child { border-right: 0; }
 .insight-item-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
@@ -356,8 +356,11 @@ body.modal-open { overflow: hidden; }
 .insight-card-description { font-size: 13px; line-height: 1.65; }
 .insight-card-marketing_insight .insight-grid,
 .insight-card-member_analysis .insight-grid,
-.insight-card-campaign_performance .insight-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.insight-card-campaign_performance .insight-grid,
+.insight-card-audience_preview .insight-grid,
+.insight-card-strategy_research .insight-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .insight-item { min-height: 104px; border: 0; }
+.insight-item { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
 .insight-item-heading strong { color: var(--text-secondary); font-size: 13px; line-height: 1.45; }
 .insight-item-heading span { font-variant-numeric: tabular-nums; }
 .insight-value { min-width: 0; margin-top: 10px; }
@@ -378,7 +381,9 @@ body.modal-open { overflow: hidden; }
 @media (max-width: 620px) {
   .insight-card-marketing_insight .insight-grid,
   .insight-card-member_analysis .insight-grid,
-  .insight-card-campaign_performance .insight-grid { grid-template-columns: 1fr; }
+  .insight-card-campaign_performance .insight-grid,
+  .insight-card-audience_preview .insight-grid,
+  .insight-card-strategy_research .insight-grid { grid-template-columns: 1fr; }
   .insight-item { min-height: 88px; padding: 13px; }
   .insight-item-long { grid-column: auto; }
   .insight-value b { font-size: 20px; }
