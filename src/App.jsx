@@ -303,6 +303,43 @@ function AudiencePreviewCard({ card, audienceMembers = [], onViewMembers }) {
   );
 }
 
+function CampaignPlanCard({ card }) {
+  const fieldLabels = {
+    "目標客群": "邀請對象",
+    "預估客群": "預估觸及",
+    "優惠內容": "會員優惠",
+    "建議通路": "建議接觸方式",
+    "活動期間": "活動時間",
+    "CRM 草稿": "活動草稿",
+  };
+  const items = (card.items || []).filter(
+    (item) => !["活動說明", "規劃發想", "決策重點"].includes(item.label),
+  );
+  const theme = items.find((item) => item.label === "活動主題");
+  const facts = items.filter((item) => item.label !== "活動主題");
+  return (
+    <>
+      {theme && (
+        <div className="campaign-plan-hero">
+          <span>這次要做的活動</span>
+          <strong>{theme.value}</strong>
+        </div>
+      )}
+      <div className="campaign-plan-facts">
+        {facts.map((item) => (
+          <article
+            className={`campaign-plan-fact${["邀請對象", "活動草稿", "主推商品"].includes(fieldLabels[item.label] || item.label) ? " campaign-plan-fact-wide" : ""}`}
+            key={item.label}
+          >
+            <span>{fieldLabels[item.label] || item.label}</span>
+            <strong>{item.value ?? "資料尚未提供"}</strong>
+          </article>
+        ))}
+      </div>
+    </>
+  );
+}
+
 function CardList({ cards = [], audienceMembers = [], onViewAudienceMembers }) {
   if (!cards.length) return null;
   const noteLabels = new Set(["活動說明", "規劃發想", "決策重點"]);
@@ -341,6 +378,8 @@ function CardList({ cards = [], audienceMembers = [], onViewAudienceMembers }) {
                 audienceMembers={audienceMembers}
                 onViewMembers={onViewAudienceMembers}
               />
+            ) : card.type === "marketing_plan" ? (
+              <CampaignPlanCard card={card} />
             ) : primaryItems.length > 0 && <div className="insight-grid">
             {primaryItems.map((item, itemIndex) => {
               const value = item.value ?? "資料尚未提供";

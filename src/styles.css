@@ -418,6 +418,24 @@ body.modal-open { overflow: hidden; }
 .audience-member-row strong { color: var(--text); font-size: 13px; }
 .audience-member-row span { color: var(--text-secondary); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
 
+/* 活動規劃：讓主題、對象、優惠與狀態各自有清楚的閱讀層級。 */
+.insight-card-marketing_plan .insight-card-description { margin-bottom: 14px; }
+.campaign-plan-hero { display: grid; gap: 6px; margin: 0 14px 12px; padding: 15px 16px; border: 1px solid #f0d8c7; border-radius: 10px; background: #fffaf6; }
+.campaign-plan-hero span { color: var(--orange-dark); font-size: 11px; font-weight: 800; }
+.campaign-plan-hero strong { color: var(--text); font-size: clamp(18px, 2vw, 24px); line-height: 1.35; overflow-wrap: anywhere; }
+.campaign-plan-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; margin: 0 14px 14px; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--border); }
+.campaign-plan-fact { min-width: 0; display: grid; gap: 6px; min-height: 76px; padding: 13px 15px; background: #fff; }
+.campaign-plan-fact-wide { grid-column: 1 / -1; min-height: 68px; }
+.campaign-plan-fact span { color: var(--text-secondary); font-size: 11px; font-weight: 800; }
+.campaign-plan-fact strong { color: var(--text); font-size: 15px; line-height: 1.5; overflow-wrap: anywhere; }
+.campaign-plan-fact-wide strong { font-size: 16px; }
+
+@media (max-width: 620px) {
+  .campaign-plan-facts { grid-template-columns: 1fr; }
+  .campaign-plan-fact-wide { grid-column: auto; }
+  .campaign-plan-hero strong { font-size: 20px; }
+}
+
 @media (max-width: 620px) {
   .audience-summary-grid { grid-template-columns: 1fr; }
   .audience-card-footer { align-items: flex-start; flex-direction: column; }
