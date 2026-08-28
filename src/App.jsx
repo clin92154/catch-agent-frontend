@@ -115,19 +115,12 @@ async function askAgent(message, conversationId) {
 }
 
 function apiError(payload, status) {
-  const apiMessage = payload?.error?.message || `API 回傳 ${status}`;
+  const apiMessage = payload?.error?.message || "目前無法完成這項處理，請稍後再試。";
   const details = payload?.error?.details || {};
-  const diagnostic = details.crm_message;
-  const diagnosticParts = [
-    details.crm_code,
-    details.crm_status_code ? `HTTP ${details.crm_status_code}` : null,
-  ].filter(Boolean);
-  const suffix = diagnostic && diagnostic !== apiMessage
-    ? `\n開發診斷：${diagnosticParts.length ? `${diagnosticParts.join(" / ")}｜` : ""}${diagnostic}`
-    : "";
-  const error = new Error(`${apiMessage}${suffix}`);
+  const error = new Error(apiMessage);
   error.code = payload?.error?.code;
   error.details = details;
+  error.status = status;
   return error;
 }
 
@@ -170,7 +163,7 @@ async function getConversation(conversationId, signal) {
   const response = await fetch(`${API_BASE_URL}/api/v1/agent/conversations/${encodeURIComponent(conversationId)}`, { signal });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(payload?.error?.message || `API 回傳 ${response.status}`);
+    throw new Error(payload?.error?.message || "目前無法讀取對話內容，請稍後再試。");
   }
   return payload?.data || null;
 }
@@ -201,7 +194,7 @@ function messageFromAgentPayload(payload) {
   return {
     id: crypto.randomUUID(),
     role: "assistant",
-    text: payload?.reply?.text || "API 已完成，但沒有文字回覆。",
+    text: payload?.reply?.text || "已完成處理，但目前沒有可顯示的文字回覆。",
     cards: payload?.reply?.cards || [],
     actions: payload?.reply?.actions || [],
     files: payload?.reply?.files || [],
@@ -709,7 +702,7 @@ export default function App() {
         {
           id: crypto.randomUUID(),
           role: "assistant",
-          text: error instanceof Error ? error.message : "目前無法連線至 API。",
+          text: error instanceof Error ? error.message : "目前無法連線至服務，請稍後再試。",
           cards: [],
           files: [],
           charts: [],
@@ -857,13 +850,13 @@ export default function App() {
 
         <div className="sidebar-note">
           <span className="status-dot" />
-          <div><strong>Agent API</strong><small>對話可延續，活動規劃會保留進度</small></div>
+          <div><strong>對話助手</strong><small>對話可延續，活動規劃會保留進度</small></div>
         </div>
       </aside>
 
       <section className="chat-panel">
         <header className="chat-header">
-          <div><span className="eyebrow">CATCH AGENT</span><h1>AI 行銷顧問</h1></div>
+          <div><span className="eyebrow">CATCH</span><h1>AI 行銷顧問</h1></div>
           <div className="header-actions">
             <span className="ai-status"><i />AI 輔助分析</span>
             <button
