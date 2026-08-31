@@ -925,8 +925,8 @@ export default function App() {
       return;
     }
     if (action.type === "continue_chat") {
-      setInput(action.payload?.message || action.label);
-      requestAnimationFrame(() => inputRef.current?.focus());
+      const nextPrompt = action.payload?.message || action.label;
+      await submitMessage(nextPrompt);
     }
   }
 
