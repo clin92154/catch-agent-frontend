@@ -20,13 +20,14 @@ const REPOS = {
 const DEFAULTS = {
   agentBackendPort: 8002,
   agentFrontendPort: 5176,
-  crmBackendPort: 8011,
+  // Demo CRM Backend must stay separate from the primary CRM development port.
+  crmBackendPort: 8012,
   crmFrontendPort: 5175,
-  crmDatabaseUrl: "postgresql://shihtengchang@127.0.0.1:5432/aposo_crm_agent_dev",
+  crmDatabaseUrl: "postgresql://shihtengchang@127.0.0.1:5432/crm_agent_demo_dev",
   crmEnvFile: resolve(WORKSPACE_ROOT, "aposo_crm_security_refactor/.env.crud-bench"),
 };
 
-const SERVICE_ORDER = ["crmBackend", "agentBackend", "crmFrontend", "agentFrontend"];
+const ALL_SERVICE_ORDER = ["crmBackend", "agentBackend", "crmFrontend", "agentFrontend"];
 
 function parseEnvFile(filePath) {
   if (!filePath || !existsSync(filePath)) return {};
@@ -55,6 +56,11 @@ function value(env, key, fallback = "") {
   return String(env[key] ?? fallback).trim();
 }
 
+function booleanValue(env, key, fallback = false) {
+  const raw = value(env, key, fallback ? "true" : "false").toLowerCase();
+  return ["1", "true", "yes", "on"].includes(raw);
+}
+
 function resolveConfiguredPath(rawPath, fallback) {
   const candidate = rawPath || fallback;
   return isAbsolute(candidate) ? candidate : resolve(REPO_ROOT, candidate);
@@ -62,6 +68,8 @@ function resolveConfiguredPath(rawPath, fallback) {
 
 function buildConfig() {
   const env = loadDemoEnv();
+  const crmMode = value(env, "DEMO_CRM_MODE", "fake").toLowerCase();
+  if (!["fake", "http"].includes(crmMode)) throw new Error("DEMO_CRM_MODE 僅支援 fake 或 http");
   const agentFile = resolveConfiguredPath(env.DEMO_AGENT_ENV_FILE, join(REPOS.agentBackend, ".env"));
   const crmFile = resolveConfiguredPath(env.DEMO_CRM_ENV_FILE, DEFAULTS.crmEnvFile);
   const crmFrontendFile = resolveConfiguredPath(env.DEMO_CRM_FRONTEND_ENV_FILE, join(REPOS.crmFrontend, ".env.dev"));
@@ -75,7 +83,12 @@ function buildConfig() {
     crmBackend: Number(value(env, "DEMO_CRM_BACKEND_PORT", DEFAULTS.crmBackendPort)),
     crmFrontend: Number(value(env, "DEMO_CRM_FRONTEND_PORT", DEFAULTS.crmFrontendPort)),
   };
+  const allowExternalLlm = booleanValue(env, "DEMO_ALLOW_EXTERNAL_LLM");
   const crmDatabaseUrl = value(env, "DEMO_CRM_DATABASE_URL", DEFAULTS.crmDatabaseUrl);
+  // CRM Frontend and CRM Backend must share the same dev database identity.
+  // Prefer the Agent Adapter credential because it is the credential already
+  // verified against the selected CRM backend; the frontend value can belong
+  // to another local database snapshot.
   const crmAccount = value(env, "DEMO_CRM_ADMIN_ACCOUNT", agentBase.CRM_API_ACCOUNT || crmFrontendBase.VITE_DEV_LOGIN_ACCOUNT);
   const crmPassword = value(env, "DEMO_CRM_ADMIN_PASSWORD", agentBase.CRM_API_PASSWORD || crmFrontendBase.VITE_DEV_LOGIN_PASSWORD);
 
@@ -94,10 +107,17 @@ function buildConfig() {
       "DEMO_STORE_LOCATIONS_CSV_PATH",
       "mock_data/store_locations.csv",
     ),
-    CRM_ADAPTER_MODE: "http",
-    CRM_API_BASE_URL: `http://127.0.0.1:${ports.crmBackend}`,
-    CRM_API_ACCOUNT: crmAccount,
-    CRM_API_PASSWORD: crmPassword,
+    CRM_ADAPTER_MODE: crmMode,
+    ...(crmMode === "http" ? {
+      CRM_API_BASE_URL: `http://127.0.0.1:${ports.crmBackend}`,
+      CRM_API_ACCOUNT: crmAccount,
+      CRM_API_PASSWORD: crmPassword,
+    } : {
+      CRM_API_BASE_URL: "",
+      CRM_API_TOKEN: "",
+      CRM_API_ACCOUNT: "",
+      CRM_API_PASSWORD: "",
+    }),
     CORS_ALLOWED_ORIGINS: [
       agentBase.CORS_ALLOWED_ORIGINS,
       `http://127.0.0.1:${ports.agentFrontend}`,
@@ -131,7 +151,13 @@ function buildConfig() {
     VITE_PROXY_TARGET: `http://127.0.0.1:${ports.agentBackend}`,
   };
 
-  return { env, files: { agentFile, crmFile, crmFrontendFile }, ports, crmDatabaseUrl, crmAccount, crmPassword, agentEnv, crmEnv, crmFrontendEnv, agentFrontendEnv };
+  return { env, files: { agentFile, crmFile, crmFrontendFile }, ports, crmMode, crmDatabaseUrl, crmAccount, crmPassword, allowExternalLlm, agentEnv, crmEnv, crmFrontendEnv, agentFrontendEnv };
+}
+
+function serviceOrder(config) {
+  return config.crmMode === "http"
+    ? ALL_SERVICE_ORDER
+    : ["agentBackend", "agentFrontend"];
 }
 
 function assertRepo(name, path) {
@@ -143,18 +169,40 @@ function assertPort(port) {
 }
 
 function validateConfig(config) {
-  for (const [name, path] of Object.entries(REPOS)) assertRepo(name, path);
-  for (const port of Object.values(config.ports)) assertPort(port);
-  if (!config.crmDatabaseUrl.startsWith("postgresql")) throw new Error("DEMO_CRM_DATABASE_URL 必須是 PostgreSQL URL");
-  const databaseName = config.crmDatabaseUrl.split("/").pop()?.split("?")[0] || "";
-  if (!/(dev|demo|test)/i.test(databaseName) || /(stage|staging|prod|production)/i.test(databaseName)) {
-    throw new Error(`拒絕使用非開發資料庫：${databaseName}`);
+  assertRepo("agentBackend", REPOS.agentBackend);
+  assertRepo("agentFrontend", REPOS.agentFrontend);
+  if (config.crmMode === "http") {
+    assertRepo("crmBackend", REPOS.crmBackend);
+    assertRepo("crmFrontend", REPOS.crmFrontend);
   }
+  for (const port of Object.values(config.ports)) assertPort(port);
   if (!existsSync(config.files.agentFile)) throw new Error(`找不到 Agent env：${config.files.agentFile}`);
-  if (!existsSync(config.files.crmFile)) throw new Error(`找不到 CRM env：${config.files.crmFile}`);
-  if (!config.crmAccount || !config.crmPassword) throw new Error("缺少 CRM Demo 登入帳密；請設定 DEMO_CRM_ADMIN_ACCOUNT／DEMO_CRM_ADMIN_PASSWORD，或在 Agent .env 設定 CRM_API_ACCOUNT／CRM_API_PASSWORD");
-  if (config.agentEnv.LLM_MODE !== "demo") throw new Error("Demo 啟動預設必須使用 LLM_MODE=demo");
-  if (config.agentEnv.CRM_ADAPTER_MODE !== "http") throw new Error("Demo 啟動必須使用 CRM_ADAPTER_MODE=http");
+  if (config.crmMode === "http") {
+    if (!config.crmDatabaseUrl.startsWith("postgresql")) throw new Error("DEMO_CRM_DATABASE_URL 必須是 PostgreSQL URL");
+    const databaseName = config.crmDatabaseUrl.split("/").pop()?.split("?")[0] || "";
+    if (!/(dev|demo|test)/i.test(databaseName) || /(stage|staging|prod|production)/i.test(databaseName)) {
+      throw new Error(`拒絕使用非開發資料庫：${databaseName}`);
+    }
+    if (!existsSync(config.files.crmFile)) throw new Error(`找不到 CRM env：${config.files.crmFile}`);
+    if (!config.crmAccount || !config.crmPassword) throw new Error("缺少 CRM Demo 登入帳密；請設定 DEMO_CRM_ADMIN_ACCOUNT／DEMO_CRM_ADMIN_PASSWORD，或在 Agent .env 設定 CRM_API_ACCOUNT／CRM_API_PASSWORD");
+  }
+  if (!config.agentEnv.LLM_MODE || !["demo", "openai", "gemini"].includes(config.agentEnv.LLM_MODE)) {
+    throw new Error("DEMO_LLM_MODE 僅支援 demo、openai 或 gemini");
+  }
+  if (config.agentEnv.LLM_MODE !== "demo" && !config.allowExternalLlm) {
+    throw new Error("使用外部 LLM 前，請明確設定 DEMO_ALLOW_EXTERNAL_LLM=true");
+  }
+  if (config.agentEnv.LLM_MODE !== "demo") {
+    const agentEnv = parseEnvFile(config.files.agentFile);
+    const hasApiKey = Boolean(
+      value(config.env, "LLM_API_KEY")
+      || value(config.env, "OPENAI_API_KEY")
+      || value(agentEnv, "LLM_API_KEY")
+      || value(agentEnv, "OPENAI_API_KEY")
+    );
+    if (!hasApiKey) throw new Error("外部 LLM 模式缺少 API Key");
+  }
+  if (config.agentEnv.CRM_ADAPTER_MODE !== config.crmMode) throw new Error("CRM Adapter 模式設定不一致");
 }
 
 function redact(valueToRedact) {
@@ -166,16 +214,21 @@ function printConfig(config) {
   console.log("Demo 環境檢查通過：");
   console.log(`- Agent Backend：${REPOS.agentBackend} → :${config.ports.agentBackend}`);
   console.log(`- Agent Frontend：${REPOS.agentFrontend} → :${config.ports.agentFrontend}`);
-  console.log(`- CRM Backend：${REPOS.crmBackend} → :${config.ports.crmBackend}`);
-  console.log(`- CRM Frontend：${REPOS.crmFrontend} → :${config.ports.crmFrontend}/aposo/`);
-  console.log(`- CRM DB：${config.crmDatabaseUrl.replace(/:\/\/.*@/, "://<redacted>@")}`);
+  console.log(`- CRM Adapter：${config.crmMode === "fake" ? "示範資料（不連線 CRM）" : "HTTP CRM Demo"}`);
+  if (config.crmMode === "http") {
+    console.log(`- CRM Backend：${REPOS.crmBackend} → :${config.ports.crmBackend}`);
+    console.log(`- CRM Frontend：${REPOS.crmFrontend} → :${config.ports.crmFrontend}/aposo/`);
+    console.log(`- CRM DB：${config.crmDatabaseUrl.replace(/:\/\/.*@/, "://<redacted>@")}`);
+  }
   console.log(`- LLM_MODE：${config.agentEnv.LLM_MODE}`);
+  console.log(`- External LLM：${config.allowExternalLlm ? "enabled" : "disabled"}`);
   console.log(`- CRM_ADAPTER_MODE：${config.agentEnv.CRM_ADAPTER_MODE}`);
-  console.log(`- CRM API account：${config.crmAccount}`);
-  console.log(`- CRM API password：${redact(config.crmPassword)}`);
+  if (config.crmMode === "http") {
+    console.log(`- CRM API account：${config.crmAccount}`);
+    console.log(`- CRM API password：${redact(config.crmPassword)}`);
+  }
   console.log(`- Agent env：${config.files.agentFile}`);
-  console.log(`- CRM env：${config.files.crmFile}`);
-  console.log(`- CRM frontend env：${config.files.crmFrontendFile}`);
+  if (config.crmMode === "http") console.log(`- CRM frontend env：${config.files.crmFrontendFile}`);
 }
 
 async function fetchStatus(url, timeoutMs = 1200) {
@@ -257,7 +310,7 @@ async function up() {
   validateConfig(config);
   printConfig(config);
   const state = { startedAt: new Date().toISOString(), config: config.ports, services: {} };
-  for (const name of SERVICE_ORDER) {
+  for (const name of serviceOrder(config)) {
     const before = await serviceHealth(name, config);
     if (before.ok) {
       state.services[name] = { reused: true, pid: null, url: before.url };
@@ -279,9 +332,11 @@ async function up() {
   saveState(state);
   console.log("\nDemo 全部服務已開啟：");
   console.log(`- Agent 前端：http://127.0.0.1:${config.ports.agentFrontend}/`);
-  console.log(`- CRM 後台：http://127.0.0.1:${config.ports.crmFrontend}/aposo/`);
   console.log(`- Agent API：http://127.0.0.1:${config.ports.agentBackend}/docs`);
-  console.log(`- CRM API：http://127.0.0.1:${config.ports.crmBackend}/docs`);
+  if (config.crmMode === "http") {
+    console.log(`- CRM 後台：http://127.0.0.1:${config.ports.crmFrontend}/aposo/`);
+    console.log(`- CRM API：http://127.0.0.1:${config.ports.crmBackend}/docs`);
+  }
 }
 
 async function down(print = true) {
@@ -301,7 +356,7 @@ async function down(print = true) {
 async function status() {
   const config = buildConfig();
   validateConfig(config);
-  for (const name of SERVICE_ORDER) {
+  for (const name of serviceOrder(config)) {
     const result = await serviceHealth(name, config);
     console.log(`${result.ok ? "✓" : "✗"} ${name.padEnd(14)} ${result.status || "offline"} ${result.url}`);
   }
