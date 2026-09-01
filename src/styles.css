@@ -293,7 +293,7 @@ body.modal-open { overflow: hidden; }
 .campaign-modal-panel,
 .report-modal-panel { display: flex; flex-direction: column; overflow: hidden; }
 .campaign-modal-body,
-.report-modal-body { min-height: 0; flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain; }
+.report-modal-body { min-height: 0; flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain; align-content: start; grid-auto-rows: max-content; }
 .campaign-modal-header p { max-width: 52ch; margin: 5px 0 0; color: var(--text-secondary); font-size: 12px; line-height: 1.55; }
 .campaign-modal-header-actions { display: flex; align-items: center; gap: 9px; flex: 0 0 auto; }
 .modal-status { padding: 5px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; }
@@ -354,7 +354,7 @@ body.modal-open { overflow: hidden; }
 .insight-card-header strong { display: block; font-size: 15px; line-height: 1.35; }
 .insight-card-eyebrow { margin-bottom: 5px; font-size: 10px; letter-spacing: 0.06em; }
 .insight-card-description { font-size: 12px; line-height: 1.6; }
-.insight-card-marketing_insight .insight-grid,
+.insight-card-marketing_insight .insight-grid { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
 .insight-card-member_analysis .insight-grid,
 .insight-card-campaign_performance .insight-grid,
 .insight-card-audience_preview .insight-grid,
@@ -400,6 +400,9 @@ body.modal-open { overflow: hidden; }
 .audience-summary-status strong { color: var(--green-dark); font-size: 15px; }
 .audience-criteria { display: grid; gap: 7px; margin: 0 14px 12px; padding: 13px 15px; border: 1px solid #f0d8c7; border-radius: 10px; background: #fffaf6; }
 .audience-criteria strong { color: var(--text); font-size: 15px; line-height: 1.55; overflow-wrap: anywhere; }
+.audience-reason { display: grid; gap: 7px; margin: 0 14px 12px; padding: 13px 15px; border: 1px solid var(--blue-border); border-radius: 10px; background: var(--blue-soft); }
+.audience-reason span { color: var(--blue-dark); font-size: 11px; font-weight: 800; }
+.audience-reason strong { color: var(--text); font-size: 13px; line-height: 1.65; overflow-wrap: anywhere; }
 .audience-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 14px 14px; padding-top: 12px; border-top: 1px solid var(--border); }
 .audience-card-footer > span { color: var(--text-muted); font-size: 11px; }
 .audience-details-button { flex: 0 0 auto; min-height: 34px; padding: 0 12px; border: 1px solid var(--orange); border-radius: 9px; color: var(--orange-dark); background: var(--orange-soft); font-size: 12px; font-weight: 800; }
@@ -446,4 +449,129 @@ body.modal-open { overflow: hidden; }
   .audience-modal-body { padding: 14px 18px 18px; }
   .audience-member-row { grid-template-columns: 1fr 1fr; gap: 6px 10px; }
   .audience-member-row strong { grid-column: 1 / -1; }
+}
+
+/* 最終閱讀調整：指標保持緊湊，完整報告保留可讀的數據層級。 */
+.insight-value b { font-size: clamp(15px, 1.55vw, 18px); line-height: 1.45; }
+.insight-card-anomaly_list .insight-value b { font-size: 16px; }
+.insight-item-long .insight-value b { font-size: 15px; }
+.report-modal-panel { width: min(1040px, 100%); max-height: min(90dvh, 920px); }
+.report-modal-body { background: #fbfcfe; }
+.report-section { box-shadow: 0 2px 8px rgba(36, 43, 54, 0.03); }
+.report-empty-state { padding: 18px 16px; color: var(--text-muted); font-size: 13px; line-height: 1.6; }
+.report-section-key-value .report-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+@media (max-width: 620px) {
+  .report-section-key-value .report-kpi-grid { grid-template-columns: 1fr; }
+  .report-modal-panel { max-height: calc(100dvh - 24px); }
+}
+
+/* 最終 UI 層級：保留既有配色，讓每張卡片都先回答「結果」，再提供「依據」與「操作」。 */
+.insight-card {
+  border-radius: 16px;
+  box-shadow: 0 8px 22px rgba(36, 43, 54, 0.055);
+}
+.insight-card-header {
+  padding: 17px 18px 12px;
+}
+.insight-card-eyebrow {
+  color: var(--text-muted);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+.insight-card-header strong {
+  font-size: 17px;
+  line-height: 1.4;
+}
+.insight-card-description {
+  margin-inline: 18px;
+  color: var(--text-secondary);
+}
+.insight-card-marketing_plan,
+.insight-card-audience_preview,
+.insight-card-member_analysis,
+.insight-card-campaign_performance,
+.insight-card-marketing_insight {
+  border-top: 3px solid var(--orange);
+}
+.insight-card-strategy_research { border-top: 3px solid var(--purple); }
+.insight-card-anomaly_list { border-top: 3px solid var(--coral); }
+.insight-item-heading { gap: 8px; }
+.insight-item-heading span {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 10px;
+}
+.insight-item-unavailable { background: #fbfcfe; }
+
+.message-actions-wrap {
+  padding: 14px;
+  border-radius: 14px;
+  background: #fffaf6;
+}
+.message-actions-heading { gap: 9px; padding: 0 2px 2px; }
+.message-actions-heading strong { font-size: 13px; }
+.message-actions-heading span { font-size: 12px; }
+.message-action {
+  min-height: 42px;
+  justify-content: space-between;
+  border-radius: 10px;
+  font-size: 13px;
+}
+.message-action:hover { transform: translateY(-1px); }
+
+.chart-card figcaption { align-items: flex-start; }
+.chart-card figcaption > span { min-width: 0; }
+.chart-card small { line-height: 1.5; overflow-wrap: anywhere; }
+.chart-card a { flex: 0 0 auto; white-space: nowrap; }
+
+.audience-modal-header h2 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+.audience-modal-count {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+.report-modal-meta {
+  display: inline-block;
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.report-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--surface);
+}
+.report-section-header h3 {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+}
+.report-section-header > span {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+@media (max-width: 620px) {
+  .insight-card-header { padding-inline: 15px; }
+  .insight-card-header strong { font-size: 16px; }
+  .insight-card-description { margin-inline: 15px; }
+  .message-actions-wrap { padding: 12px; }
+  .message-action { width: 100%; }
+  .audience-modal-header h2 { gap: 5px; }
+  .report-section-header { padding-inline: 14px; }
 }

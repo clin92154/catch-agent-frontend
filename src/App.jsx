@@ -6,9 +6,6 @@ const RICH_TEXT_PATTERN = /<span class="(catch-(?:highlight|positive|negative|wa
 const MARKETING_PROMPT = "規劃沉睡會員的蛋糕喚回活動，提供 9 折優惠。";
 const INSIGHT_PROMPT = "分析本週營收、Top 5 商品、門市與通路表現。";
 const MEMBER_PROMPT = "找出最近最可能購買的會員。";
-const PERFORMANCE_PROMPT = "分析活動 1 是否成功，以及下一次怎麼改善。";
-const STRATEGY_RESEARCH_PROMPT = "研究活動 1，提前四週和提前兩週哪個效果好？";
-const HISTORICAL_RESEARCH_PROMPT = "先分析去年母親節，再規劃今年活動，並比較提前四週與提前兩週。";
 const CONVERSATION_STORAGE_KEY = "catch-agent-conversation-id";
 
 const suggestionGroups = [
@@ -16,8 +13,8 @@ const suggestionGroups = [
     label: "AI 行銷洞察",
     items: [
       INSIGHT_PROMPT,
-      "上週哪個商品最好？",
-      "本週哪個門市表現最好？",
+      "上週 Top 5 商品與通路表現如何？",
+      "本週哪個門市營收最高？有異常嗎？",
     ],
   },
   {
@@ -25,7 +22,7 @@ const suggestionGroups = [
     items: [
       MEMBER_PROMPT,
       "找出最近可能流失的會員。",
-      "預覽曾購買蛋糕且近 90 天未回購的會員。",
+      "找出女性、曾購買蛋糕且近 90 天有消費的會員。",
     ],
   },
   {
@@ -33,20 +30,15 @@ const suggestionGroups = [
     items: [
       MARKETING_PROMPT,
       "幫我規劃今年母親節蛋糕活動，提供會員專屬優惠。",
-      "針對高價值會員設計會員專屬優惠。",
+      "規劃中秋節禮盒活動，推薦適合的會員客群。",
     ],
   },
   {
     label: "AI 成效分析",
-    items: [PERFORMANCE_PROMPT, "分析活動 1 的核銷率與 30 天回購。", "分析活動 1 的活動營收與客群效果。"],
-  },
-  {
-    label: "AI 行銷研究",
     items: [
-      HISTORICAL_RESEARCH_PROMPT,
-      "根據去年分析規劃今年母親節活動。",
-      "建立今年活動的策略研究設定。",
-      STRATEGY_RESEARCH_PROMPT,
+      "目前有哪些行銷活動？",
+      "查看母親節活動成效。",
+      "比較今年與去年母親節活動成效。",
     ],
   },
 ];
@@ -257,11 +249,11 @@ function ChartList({ charts = [] }) {
         <figure className="chart-card" key={`${chart.name}-${chart.file_url}`}>
           <img src={assetUrl(chart.file_url)} alt={chart.description || chart.name} />
           <figcaption>
-            {/* <span>
+            <span>
               <strong>{chart.name}</strong>
-              <small>{chart.description}</small>
-            </span> */}
-            <a href={assetUrl(chart.file_url)} target="_blank" rel="noreferrer">開啟</a>
+              {chart.description && <small>{chart.description}</small>}
+            </span>
+            <a href={assetUrl(chart.file_url)} target="_blank" rel="noreferrer" aria-label={`開啟${chart.name}`}>查看圖表 ↗</a>
           </figcaption>
         </figure>
       ))}
@@ -272,6 +264,8 @@ function ChartList({ charts = [] }) {
 function AudiencePreviewCard({ card, audienceMembers = [], onViewMembers }) {
   const count = cardValue(card, "符合會員");
   const criteria = cardValue(card, "篩選條件");
+  const reason = cardValue(card, "AI 挑選依據");
+  const display = cardValue(card, "明細顯示");
   const status = cardValue(card, "資料狀態");
   return (
     <>
@@ -291,9 +285,13 @@ function AudiencePreviewCard({ card, audienceMembers = [], onViewMembers }) {
         <span>這群會員符合</span>
         <strong>{criteria}</strong>
       </div>
+      <div className="audience-reason">
+        <span>AI 為什麼挑選這群人</span>
+        <strong>{reason}</strong>
+      </div>
       {audienceMembers.length > 0 && (
         <div className="audience-card-footer">
-          <span>目前可查看前 {audienceMembers.length} 位去識別化摘要</span>
+          <span>完整符合 {count}，{display === "—" ? `目前展示前 ${audienceMembers.length} 位摘要` : `明細：${display}`}</span>
           <button type="button" className="audience-details-button" onClick={onViewMembers}>
             查看會員詳情 ↗
           </button>
@@ -367,7 +365,9 @@ function CardList({ cards = [], audienceMembers = [], onViewAudienceMembers }) {
           >
             <header className="insight-card-header">
               <div>
-                <span className="insight-card-eyebrow">{cardEyebrows[card.type] || "CRM 資訊"}</span>
+                <span className="insight-card-eyebrow">
+                  {card.title === "CRM 歷史活動" ? "歷史活動" : cardEyebrows[card.type] || "分析摘要"}
+                </span>
                 <strong>{card.title}</strong>
               </div>
             </header>
@@ -384,7 +384,9 @@ function CardList({ cards = [], audienceMembers = [], onViewAudienceMembers }) {
             {primaryItems.map((item, itemIndex) => {
               const value = item.value ?? "資料尚未提供";
               const valueText = String(value);
-              const isLongValue = valueText.length >= 8 || valueText.includes("\n");
+              // 摘要卡中的長名稱仍應留在同一欄換行，只有規劃／研究說明才跨欄，避免歷史活動卡出現大片空白。
+              const isLongValue = valueText.includes("\n")
+                || (["marketing_plan", "strategy_research"].includes(card.type) && valueText.length >= 8);
               const isUnavailable = item.status === "unavailable" || valueText === "資料不可用" || valueText === "資料尚未提供";
               return (
               <article
@@ -434,8 +436,8 @@ function ActionList({ actions = [], onAction }) {
   return (
     <div className="message-actions-wrap" aria-label="後續操作">
       <div className="message-actions-heading">
-        <strong>下一步</strong>
-        <span>請選擇要繼續的操作</span>
+        <strong>接下來可以</strong>
+        <span>請選擇一個操作</span>
       </div>
       <div className="message-actions">
         {actions.map((action, index) => (
@@ -472,8 +474,7 @@ function AudienceMembersModal({ members = [], onClose }) {
         <header className="audience-modal-header">
           <div>
             <span className="eyebrow">客群摘要</span>
-            <h2 id="audience-modal-title">符合條件的會員</h2>
-            <p>以下為去識別化摘要，僅供確認客群組成。</p>
+            <h2 id="audience-modal-title">符合條件的會員 <span className="audience-modal-count">共 {members.length} 位摘要</span></h2>
           </div>
           <button className="audience-modal-close" type="button" aria-label="關閉會員詳情" onClick={onClose}>×</button>
         </header>
@@ -485,6 +486,12 @@ function AudienceMembersModal({ members = [], onClose }) {
                 <span>{member.segment_name || "一般會員"}</span>
                 <span>{["active", "enabled"].includes(member.status) ? "會員狀態：啟用" : `會員狀態：${member.status || "未提供"}`}</span>
                 <span>{member.points == null ? "點數資料未提供" : `目前點數：${Number(member.points).toLocaleString()}`}</span>
+                {member.age != null && <span>年齡：{member.age} 歲</span>}
+                {member.gender && <span>性別：{member.gender === "female" ? "女性" : member.gender === "male" ? "男性" : member.gender}</span>}
+                {member.last_purchase_at && <span>最近消費：{member.last_purchase_at}</span>}
+                {member.order_count != null && <span>累積訂單：{Number(member.order_count).toLocaleString()} 筆</span>}
+                {member.product_preference && <span>偏好商品：{member.product_preference}</span>}
+                {member.discount_sensitive != null && <span>{member.discount_sensitive ? "對優惠較敏感" : "價格敏感度一般"}</span>}
               </article>
             ))}
           </div>
@@ -514,13 +521,18 @@ function ReportPanel({ report, onClose }) {
             <span className="eyebrow">詳細分析</span>
             <h2 id="report-modal-title">{report.title}</h2>
             <p>{report.summary}</p>
+            <span className="report-modal-meta">本報告包含 {(report.sections || []).length} 個分析區塊</span>
           </div>
           <button className="report-modal-close" type="button" aria-label="關閉詳細報告" onClick={onClose}>×</button>
         </header>
         <div className="report-modal-body">
-          {(report.sections || []).map((section, index) => (
-            <ReportSection section={section} key={`${section.title}-${index}`} />
-          ))}
+          {(report.sections || []).length > 0 ? (
+            report.sections.map((section, index) => (
+              <ReportSection section={section} key={`${section.title}-${index}`} />
+            ))
+          ) : (
+            <div className="report-empty-state">目前沒有可展示的詳細數據。</div>
+          )}
         </div>
       </section>
     </div>
@@ -534,8 +546,13 @@ function ReportSection({ section }) {
   const isList = columns.length === 1;
   return (
     <section className={`report-section ${isKeyValue ? "report-section-key-value" : ""} ${isList ? "report-section-list" : ""}`}>
-      <h3>{section.title}</h3>
-      {isKeyValue ? (
+      <header className="report-section-header">
+        <h3>{section.title}</h3>
+        <span>{rows.length} {isList ? "項" : "筆"}</span>
+      </header>
+      {!rows.length ? (
+        <div className="report-empty-state">目前沒有可展示的資料。</div>
+      ) : isKeyValue ? (
         <div className="report-kpi-grid">
           {rows.map((row, rowIndex) => (
             <div className="report-kpi" key={`${section.title}-${rowIndex}`}>
@@ -630,7 +647,7 @@ function CampaignDraftModal({ campaign, onClose }) {
           <div className="campaign-modal-grid">
           {isPerformanceCard ? (
             <>
-              <CampaignField label="CRM 草稿" value={campaignId} emphasis />
+              <CampaignField label="活動主題" value={cardValue(card, "活動主題") || "本次活動"} emphasis />
               <CampaignField label="本次發送" value={cardValue(card, "本次發送")} />
               <CampaignField label="已核銷" value={cardValue(card, "已核銷")} />
               <CampaignField label="核銷率" value={cardValue(card, "核銷率")} />
@@ -645,7 +662,7 @@ function CampaignDraftModal({ campaign, onClose }) {
               <CampaignField label="預估客群" value={audienceValue} />
               <CampaignField label="優惠內容" value={cardValue(card, "優惠內容")} />
               <CampaignField label="建議通路" value={cardValue(card, "建議通路")} />
-              <CampaignField label="活動草稿編號" value={campaignId} />
+              <CampaignField label="活動草稿狀態" value={campaignId ? "已建立" : "尚未建立"} />
               <CampaignField label="目前狀態" value={statusLabel} />
               <CampaignField label="已發送優惠" value={metrics ? `${metrics.issued_count} 人` : "—"} />
               <CampaignField label="已使用優惠" value={metrics ? `${metrics.redeemed_count} 人` : "—"} />
