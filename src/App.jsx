@@ -120,7 +120,7 @@ async function createCampaignDraft(conversationId) {
   const response = await fetch(`${API_BASE_URL}/api/v1/agent/campaigns/draft`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ conversation_id: conversationId }),
+    body: JSON.stringify({ conversation_id: conversationId, confirmed: true }),
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -133,7 +133,7 @@ async function sendCampaignCoupon(campaignId, conversationId) {
   const response = await fetch(`${API_BASE_URL}/api/v1/agent/campaigns/${encodeURIComponent(campaignId)}/send`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ conversation_id: conversationId }),
+    body: JSON.stringify({ conversation_id: conversationId, confirmed: true }),
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
