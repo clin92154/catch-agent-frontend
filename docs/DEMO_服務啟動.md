@@ -1,4 +1,7 @@
-# AI Marketing Demo 服務啟動
+# 舊版 Agent Demo 服務啟動（已停用）
+
+> 本文件保留作為歷史參考，目前不使用獨立 Agent 前端。請改用 CRM 整併版前端指南：
+> `/Users/shihtengchang/Desktop/Project/CRM/aposo_crm_frontend_agent_adapter/docs/本地整合開發指南.md`
 
 ## 服務組成
 
