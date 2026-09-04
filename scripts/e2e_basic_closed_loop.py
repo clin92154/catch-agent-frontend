@@ -152,8 +152,8 @@ def main() -> None:
 
         create_button = page.get_by_role("button", name="建立活動草稿").last
         assert create_button.is_visible()
-        assert not dialogs, "建立草稿不應使用瀏覽器原生確認視窗"
         create_button.click()
+        assert not dialogs, "建立草稿不應使用瀏覽器原生確認視窗"
         approval_dialog = page.get_by_role("dialog", name="確認建立活動草稿")
         assert approval_dialog.is_visible()
         assert "優惠券仍要再次確認才會發送" in approval_dialog.inner_text()
@@ -227,6 +227,7 @@ def main() -> None:
         )
 
         send_button.click()
+        assert not dialogs, "發送優惠券不應使用瀏覽器原生確認視窗"
         send_dialog = page.get_by_role("dialog", name="確認發送優惠券")
         assert send_dialog.is_visible()
         assert "CRM 會建立本次活動的優惠券" in send_dialog.inner_text()
