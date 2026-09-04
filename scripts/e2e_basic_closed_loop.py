@@ -10,7 +10,7 @@ from typing import Any
 from playwright.sync_api import Page, sync_playwright
 
 
-AGENT_URL = os.environ.get("E2E_AGENT_URL", "http://127.0.0.1:5176")
+AGENT_URL = os.environ.get("E2E_AGENT_URL", "http://127.0.0.1:5174")
 AGENT_BACKEND_URL = os.environ.get("E2E_AGENT_BACKEND_URL", "http://127.0.0.1:8002")
 CRM_API_URL = os.environ.get("E2E_CRM_API_URL", "http://127.0.0.1:8012")
 OUTPUT_DIR = Path(os.environ.get("E2E_OUTPUT_DIR", "docs/e2e/basic_closed_loop_20260824"))
@@ -69,7 +69,7 @@ def ask(page: Page, question: str) -> tuple[dict[str, Any], dict[str, Any]]:
     request_body = json.loads(response.request.post_data or "{}")
     if not response.ok:
         raise AssertionError(f"Agent query 失敗（{response.status}）：{question}")
-    page.locator(".typing-bubble").wait_for(state="hidden", timeout=90000)
+    page.wait_for_function("() => document.querySelectorAll('.typing-bubble').length === 0", timeout=90000)
     return request_body, payload
 
 
@@ -152,22 +152,28 @@ def main() -> None:
 
         create_button = page.get_by_role("button", name="建立活動草稿").last
         assert create_button.is_visible()
+        assert not dialogs, "建立草稿不應使用瀏覽器原生確認視窗"
+        create_button.click()
+        approval_dialog = page.get_by_role("dialog", name="確認建立活動草稿")
+        assert approval_dialog.is_visible()
+        assert "優惠券仍要再次確認才會發送" in approval_dialog.inner_text()
         with page.expect_response(
             lambda response: response.url.endswith("/api/v1/agent/campaigns/draft")
             and response.request.method == "POST",
             timeout=90000,
         ) as create_info:
-            create_button.click()
+            approval_dialog.get_by_role("button", name="確認建立").click()
         create_response = create_info.value
         create_payload = create_response.json()
         create_request = json.loads(create_response.request.post_data or "{}")
         assert create_response.ok, create_payload
-        page.locator(".typing-bubble").wait_for(state="hidden", timeout=90000)
+        page.wait_for_function("() => document.querySelectorAll('.typing-bubble').length === 0", timeout=90000)
         created_workflow = create_payload.get("workflow") or {}
         campaign_id = created_workflow.get("campaign_id")
         assert campaign_id, create_payload
         assert created_workflow.get("status") == "draft_created", create_payload
-        assert page.get_by_role("button", name="發送優惠券").last.is_visible()
+        send_button = page.get_by_role("button", name="發送優惠券").last
+        assert send_button.is_visible()
         draft_audience_total = card_audience_total(create_payload)
         screenshots.append(screenshot(page, "03_draft_created"))
         steps.append(
@@ -187,7 +193,7 @@ def main() -> None:
         )
 
         metrics_response = page.request.get(
-            f"{AGENT_URL}/api/v1/agent/campaigns/{campaign_id}/metrics"
+            f"{AGENT_BACKEND_URL}/api/v1/agent/campaigns/{campaign_id}/metrics"
         )
         assert metrics_response.ok, metrics_response.text()
         metrics_payload = metrics_response.json()
@@ -206,7 +212,7 @@ def main() -> None:
                 "step": "3. CRM 活動草稿狀態與 metrics 回查",
                 "input": {
                     "method": "GET",
-                    "url": f"/api/v1/agent/campaigns/{campaign_id}/metrics",
+                    "url": f"{AGENT_BACKEND_URL}/api/v1/agent/campaigns/{campaign_id}/metrics",
                 },
                 "output": metrics_payload,
                 "assertions": {
@@ -220,6 +226,38 @@ def main() -> None:
             }
         )
 
+        send_button.click()
+        send_dialog = page.get_by_role("dialog", name="確認發送優惠券")
+        assert send_dialog.is_visible()
+        assert "CRM 會建立本次活動的優惠券" in send_dialog.inner_text()
+        with page.expect_response(
+            lambda response: response.url.endswith(f"/api/v1/agent/campaigns/{campaign_id}/send")
+            and response.request.method == "POST",
+            timeout=90000,
+        ) as send_info:
+            send_dialog.get_by_role("button", name="確認發送").click()
+        send_response = send_info.value
+        send_payload = send_response.json()
+        assert send_response.ok, send_payload
+        assert (send_payload.get("workflow") or {}).get("status") == "sent", send_payload
+        assert page.get_by_text("已完成 CRM 優惠券發送").last.is_visible()
+        screenshots.append(screenshot(page, "04_campaign_sent"))
+        steps.append(
+            {
+                "step": "4. 使用者確認發送優惠券並回查活動成效",
+                "input": {
+                    "ui_action": "發送優惠券",
+                    "confirm_dialog": "確認發送優惠券",
+                    "request": json.loads(send_response.request.post_data or "{}"),
+                },
+                "output": response_summary(send_payload),
+                "ui": {
+                    "card_status": "CRM 已完成發送",
+                    "next_action": "查看完整成效報告",
+                },
+            }
+        )
+
         product_prompt = "上週哪個商品最好？"
         product_request, product_payload = ask(page, product_prompt)
         product_reply = product_payload.get("reply") or {}
@@ -229,7 +267,7 @@ def main() -> None:
         screenshots.append(screenshot(page, "04_product_recommendation"))
         steps.append(
             {
-                "step": "4. 於同一活動上下文詢問主推商品",
+                "step": "5. 於同一活動上下文詢問主推商品",
                 "input": {"user_message": product_prompt, "request": product_request},
                 "output": response_summary(product_payload),
                 "ui": {
@@ -257,7 +295,7 @@ def main() -> None:
             page.locator(".report-modal-close").click()
         steps.append(
             {
-                "step": "5. 同一對話追問活動成效",
+                "step": "6. 同一對話追問活動成效",
                 "input": {"user_message": analysis_prompt, "request": analysis_request},
                 "output": response_summary(analysis_payload),
                 "ui": {
@@ -269,7 +307,7 @@ def main() -> None:
         )
 
         snapshot_response = page.request.get(
-            f"{AGENT_URL}/api/v1/agent/conversations/{conversation_id}"
+            f"{AGENT_BACKEND_URL}/api/v1/agent/conversations/{conversation_id}"
         )
         assert snapshot_response.ok, snapshot_response.text()
         snapshot_payload = snapshot_response.json()
@@ -280,10 +318,10 @@ def main() -> None:
         assert len(messages) >= 4, snapshot_payload
         steps.append(
             {
-                "step": "6. 對話與 workflow 狀態保存",
+                "step": "7. 對話與 workflow 狀態保存",
                 "input": {
                     "method": "GET",
-                    "url": f"/api/v1/agent/conversations/{conversation_id}",
+                    "url": f"{AGENT_BACKEND_URL}/api/v1/agent/conversations/{conversation_id}",
                 },
                 "output": {
                     "conversation_id": snapshot.get("conversation_id"),
@@ -311,7 +349,7 @@ def main() -> None:
             "agent_backend": AGENT_BACKEND_URL,
             "crm_backend": CRM_API_URL,
             "crm_database": "aposo_crm_agent_dev（dev 測試資料）",
-            "llm_mode": "demo（本次未呼叫外部 LLM）",
+            "llm_mode": os.environ.get("E2E_LLM_MODE", "請由執行環境確認"),
             "crm_adapter_mode": "http",
         },
         "result": result_status,
@@ -320,7 +358,7 @@ def main() -> None:
         "steps": steps,
         "warnings": warnings,
         "screenshots": screenshots,
-        "safety": "本次停在 CRM 草稿與成效查詢，未觸發發送優惠券，因此不會產生發送副作用。",
+        "safety": "本次已在人工確認 Dialog 中確認發送；發送對象為隔離 dev 測試庫中的合成會員。",
         "diagnostics": {
             "page_errors": page_errors,
             "console_errors": console_errors,
@@ -333,7 +371,7 @@ def main() -> None:
         f"- 測試時間：{result['started_at']}",
         f"- 測試結果：**{result_status}**",
         "- 測試範圍：活動規劃 → CRM 客群預覽 → 使用者確認建立草稿 → metrics 回查 → 上下文商品推薦 → 活動成效追問 → 對話保存",
-        "- 發送策略：本次不觸發優惠券發送，避免測試造成發送副作用",
+        "- 發送策略：於人工確認 Dialog 確認後，對隔離 dev 測試庫中的合成會員執行發送",
         "",
         "## 測試環境",
         "",
@@ -390,7 +428,7 @@ def main() -> None:
         f"- 最終 workflow：`{(snapshot.get('workflow') or {}).get('status', '未提供')}`",
         "- 已驗證 Agent → CRM Adapter（HTTP）→ CRM Backend → dev DB 的基礎閉環。",
         f"- 流程驗收：`PASS`；資料一致性驗收：`{'PASS' if not warnings else 'WARNING'}`。",
-        "- `建立活動草稿` 由使用者明確確認後才呼叫；`發送優惠券` 保留為下一個人工確認節點，本次未執行。",
+        "- `建立活動草稿` 與 `發送優惠券` 都由使用者在獨立確認 Dialog 明確確認後才呼叫。",
         "- 舊版 `scripts/e2e_marketing_flow.py` 仍假設規劃完成即有草稿，與目前確認式流程不一致；本報告使用新的基礎閉環腳本。",
         "",
         "## 重跑命令",

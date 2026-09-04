@@ -695,6 +695,56 @@ function CampaignDraftModal({ campaign, onClose }) {
   );
 }
 
+function ApprovalDialog({ approval, onCancel, onConfirm, loading = false }) {
+  useEffect(() => {
+    if (!approval) return undefined;
+    const handleEscape = (event) => {
+      if (event.key === "Escape" && !loading) onCancel();
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [approval, loading, onCancel]);
+
+  if (!approval) return null;
+  const isSend = approval.type === "send_coupon";
+  const title = isSend ? "確認發送優惠券" : "確認建立活動草稿";
+  const description = isSend
+    ? "確認後，CRM 會建立本次活動的優惠券並送出。"
+    : "確認後，CRM 會建立活動草稿；優惠券仍要再次確認才會發送。";
+  const campaignName = cardValue(approval.card, "活動主題");
+  const audience = cardValue(approval.card, "預估客群");
+  const offer = cardValue(approval.card, "優惠內容");
+  return (
+    <div className="approval-modal" role="presentation">
+      <button className="approval-modal-backdrop" type="button" aria-label="取消操作" onClick={() => !loading && onCancel()} />
+      <section className="approval-modal-panel" role="dialog" aria-modal="true" aria-labelledby="approval-dialog-title" aria-label={title}>
+        <header className="approval-modal-header">
+          <div>
+            <span className="eyebrow">需要確認</span>
+            <h2 id="approval-dialog-title">{title}</h2>
+            <p>{description}</p>
+          </div>
+          <button className="approval-modal-close" type="button" aria-label="關閉確認視窗" onClick={onCancel} disabled={loading}>×</button>
+        </header>
+        <div className="approval-modal-body">
+          <div className="approval-summary">
+            <div><span>活動主題</span><strong>{campaignName === "—" ? "本次活動" : campaignName}</strong></div>
+            <div><span>預估觸及</span><strong>{audience}</strong></div>
+            <div><span>會員優惠</span><strong>{offer}</strong></div>
+          </div>
+          <p className="approval-modal-note">{isSend ? "這個操作會開始發送，請確認活動內容與對象無誤。" : "建立後可在 CRM 後台檢視草稿與活動條件。"}</p>
+          <div className="approval-modal-actions">
+            <button type="button" className="approval-button approval-button-secondary" onClick={onCancel} disabled={loading}>先不要</button>
+            <button type="button" className={`approval-button ${isSend ? "approval-button-send" : "approval-button-primary"}`} onClick={onConfirm} disabled={loading}>
+              {loading ? "處理中…" : isSend ? "確認發送" : "確認建立"}
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function Message({ message, onAction, onViewAudienceMembers }) {
   const isUser = message.role === "user";
   const workflowStatusLabel = {
@@ -775,6 +825,7 @@ export default function App() {
   const [activeCampaign, setActiveCampaign] = useState(null);
   const [activeReport, setActiveReport] = useState(null);
   const [activeAudienceMembers, setActiveAudienceMembers] = useState(null);
+  const [pendingApproval, setPendingApproval] = useState(null);
   const inputRef = useRef(null);
   const endRef = useRef(null);
   const restoreControllerRef = useRef(null);
@@ -784,9 +835,9 @@ export default function App() {
   }, [messages, loading]);
 
   useEffect(() => {
-    document.body.classList.toggle("modal-open", Boolean(activeCampaign || activeReport || activeAudienceMembers));
+    document.body.classList.toggle("modal-open", Boolean(activeCampaign || activeReport || activeAudienceMembers || pendingApproval));
     return () => document.body.classList.remove("modal-open");
-  }, [activeCampaign, activeReport, activeAudienceMembers]);
+  }, [activeCampaign, activeReport, activeAudienceMembers, pendingApproval]);
 
   useEffect(() => {
     if (!conversationId) {
@@ -863,60 +914,26 @@ export default function App() {
     if (action.type === "create_campaign_draft") {
       const actionConversationId = message.conversationId || conversationId;
       if (!actionConversationId) return;
-      if (!window.confirm("確認建立這份 CRM 活動草稿嗎？建立後仍需確認才會發送優惠券。")) return;
-      setLoading(true);
-      try {
-        const payload = await createCampaignDraft(actionConversationId);
-        setMessages((current) => [
-          ...current.map((item) => item.id === message.id
-            ? { ...item, actions: item.actions.filter((itemAction) => itemAction.type !== "create_campaign_draft") }
-            : item),
-          messageFromAgentPayload(payload),
-        ]);
-      } catch (error) {
-        setMessages((current) => [
-          ...current,
-          {
-            id: crypto.randomUUID(),
-            role: "assistant",
-            text: error instanceof Error ? error.message : "目前無法建立活動草稿。",
-            cards: [], actions: [], files: [], charts: [], reports: [], workflow: null,
-            error: true, intent: "建立失敗", conversationId: actionConversationId,
-          },
-        ]);
-      } finally {
-        setLoading(false);
-      }
+      setPendingApproval({
+        type: action.type,
+        conversationId: actionConversationId,
+        messageId: message.id,
+        card: message.cards?.find((card) => card.type === "marketing_plan"),
+      });
       return;
     }
     if (action.type === "send_coupon") {
       const actionConversationId = message.conversationId || conversationId;
       const campaignId = action.payload?.campaign_id;
       if (!actionConversationId || !campaignId) return;
-      if (!window.confirm("確認發送優惠券嗎？這會透過 CRM 建立本次活動的優惠券。")) return;
-      setLoading(true);
-      try {
-        const payload = await sendCampaignCoupon(campaignId, actionConversationId);
-        setMessages((current) => [
-          ...current.map((item) => item.id === message.id
-            ? { ...item, actions: item.actions.filter((itemAction) => itemAction.type !== "send_coupon") }
-            : item),
-          messageFromAgentPayload(payload),
-        ]);
-      } catch (error) {
-        setMessages((current) => [
-          ...current,
-          {
-            id: crypto.randomUUID(),
-            role: "assistant",
-            text: error instanceof Error ? error.message : "目前無法發送優惠券。",
-            cards: [], actions: [], files: [], charts: [], reports: [], workflow: null,
-            error: true, intent: "發送失敗", conversationId: actionConversationId,
-          },
-        ]);
-      } finally {
-        setLoading(false);
-      }
+      setPendingApproval({
+        type: action.type,
+        conversationId: actionConversationId,
+        campaignId,
+        messageId: message.id,
+        card: message.cards?.find((card) => card.type === "marketing_plan")
+          || message.cards?.find((card) => card.type === "campaign_performance"),
+      });
       return;
     }
     if (action.type === "open_campaign") {
@@ -947,20 +964,68 @@ export default function App() {
     }
   }
 
+  async function confirmPendingApproval() {
+    if (!pendingApproval || loading) return;
+    const approval = pendingApproval;
+    setPendingApproval(null);
+    setLoading(true);
+    try {
+      const payload = approval.type === "send_coupon"
+        ? await sendCampaignCoupon(approval.campaignId, approval.conversationId)
+        : await createCampaignDraft(approval.conversationId);
+      setMessages((current) => [
+        ...current.map((item) => item.id === approval.messageId
+          ? { ...item, actions: item.actions.filter((itemAction) => itemAction.type !== approval.type) }
+          : item),
+        messageFromAgentPayload(payload),
+      ]);
+    } catch (error) {
+      setMessages((current) => [
+        ...current,
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          text: error instanceof Error
+            ? error.message
+            : approval.type === "send_coupon" ? "目前無法發送優惠券。" : "目前無法建立活動草稿。",
+          cards: [], actions: [], files: [], charts: [], reports: [], workflow: null,
+          error: true,
+          intent: approval.type === "send_coupon" ? "發送失敗" : "建立失敗",
+          conversationId: approval.conversationId,
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function cancelPendingApproval() {
+    if (!loading) setPendingApproval(null);
+  }
+
   function handleSubmit(event) {
     event.preventDefault();
     submitMessage();
   }
 
   function handleKeyDown(event) {
-    if (
-      event.key === "Enter"
-      && !event.shiftKey
-      && (event.metaKey || event.ctrlKey)
-    ) {
+    if (event.key !== "Enter") return;
+    if (event.metaKey || event.ctrlKey) {
       event.preventDefault();
       submitMessage();
+      return;
     }
+    // Textarea 位於 form 內；阻止瀏覽器的 implicit submit，並保留 Enter 換行。
+    event.preventDefault();
+    const target = event.currentTarget;
+    const start = target.selectionStart ?? input.length;
+    const end = target.selectionEnd ?? start;
+    const nextValue = `${input.slice(0, start)}\n${input.slice(end)}`;
+    setInput(nextValue);
+    requestAnimationFrame(() => {
+      target.selectionStart = start + 1;
+      target.selectionEnd = start + 1;
+    });
   }
 
   return (
@@ -1014,6 +1079,7 @@ export default function App() {
                 setActiveCampaign(null);
                 setActiveReport(null);
                 setActiveAudienceMembers(null);
+                setPendingApproval(null);
               }}
             >
               清除對話
@@ -1063,6 +1129,12 @@ export default function App() {
       <CampaignDraftModal campaign={activeCampaign} onClose={() => setActiveCampaign(null)} />
       <ReportPanel report={activeReport} onClose={() => setActiveReport(null)} />
       <AudienceMembersModal members={activeAudienceMembers || []} onClose={() => setActiveAudienceMembers(null)} />
+      <ApprovalDialog
+        approval={pendingApproval}
+        loading={loading}
+        onCancel={cancelPendingApproval}
+        onConfirm={confirmPendingApproval}
+      />
     </main>
   );
 }

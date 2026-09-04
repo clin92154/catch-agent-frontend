@@ -206,6 +206,31 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, summary:focus-vis
 .campaign-modal-status { margin: 0 24px 24px; padding: 13px 15px; border-radius: 10px; color: var(--yellow-dark); background: var(--yellow-soft); font-size: 13px; line-height: 1.6; }
 .campaign-modal-footer { display: flex; justify-content: flex-end; margin: -8px 24px 24px; }
 
+.approval-modal { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; padding: 24px; }
+.approval-modal-backdrop { position: absolute; inset: 0; width: 100%; border: 0; background: rgba(31, 35, 42, 0.46); cursor: default; }
+.approval-modal-panel { position: relative; width: min(520px, 100%); overflow: hidden; border: 1px solid var(--border); border-radius: 18px; background: #fff; box-shadow: 0 24px 80px rgba(31, 35, 42, 0.28); }
+.approval-modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 22px 24px 18px; border-bottom: 1px solid var(--border); background: linear-gradient(135deg, #fffaf6, #fff); }
+.approval-modal-header h2 { margin: 4px 0 7px; color: var(--text); font-size: 21px; }
+.approval-modal-header p { max-width: 42ch; margin: 0; color: var(--text-secondary); font-size: 13px; line-height: 1.65; }
+.approval-modal-close { width: 34px; height: 34px; border: 1px solid var(--border); border-radius: 10px; color: var(--text-secondary); background: #fff; font-size: 24px; line-height: 1; }
+.approval-modal-close:hover:not(:disabled) { color: var(--orange-dark); border-color: #efbd9d; background: var(--orange-soft); }
+.approval-modal-close:disabled { cursor: not-allowed; opacity: 0.45; }
+.approval-modal-body { display: grid; gap: 16px; padding: 20px 24px 24px; }
+.approval-summary { display: grid; gap: 1px; overflow: hidden; border: 1px solid var(--border); border-radius: 12px; background: var(--border); }
+.approval-summary > div { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 13px 15px; background: #fff; }
+.approval-summary span { color: var(--text-secondary); font-size: 12px; }
+.approval-summary strong { color: var(--text); font-size: 14px; line-height: 1.5; text-align: right; overflow-wrap: anywhere; }
+.approval-modal-note { margin: 0; padding: 11px 13px; border-left: 3px solid #f3b58e; border-radius: 0 9px 9px 0; color: var(--text-secondary); background: #fffaf6; font-size: 12px; line-height: 1.6; }
+.approval-modal-actions { display: flex; justify-content: flex-end; gap: 9px; }
+.approval-button { min-height: 42px; padding: 0 17px; border: 1px solid var(--border); border-radius: 10px; font-size: 13px; font-weight: 800; }
+.approval-button-secondary { color: var(--text-secondary); background: #fff; }
+.approval-button-secondary:hover:not(:disabled) { color: var(--orange-dark); border-color: #efbd9d; background: var(--orange-soft); }
+.approval-button-primary { color: #fff; border-color: var(--orange); background: var(--orange); }
+.approval-button-primary:hover:not(:disabled) { border-color: var(--orange-dark); background: var(--orange-dark); }
+.approval-button-send { color: #fff; border-color: var(--green); background: var(--green); }
+.approval-button-send:hover:not(:disabled) { border-color: var(--green-dark); background: var(--green-dark); }
+.approval-button:disabled { cursor: not-allowed; opacity: 0.55; }
+
 .report-modal { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; padding: 24px; }
 .report-modal-backdrop { position: absolute; inset: 0; width: 100%; border: 0; background: rgba(31, 35, 42, 0.48); cursor: default; }
 .report-modal-panel { position: relative; width: min(980px, 100%); max-height: min(88dvh, 860px); overflow: auto; border: 1px solid var(--border); border-radius: 18px; background: #fff; box-shadow: 0 24px 80px rgba(31, 35, 42, 0.28); }
@@ -256,6 +281,14 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, summary:focus-vis
   .report-modal { padding: 12px; }
   .report-modal-header { padding: 18px 18px 15px; }
   .report-modal-body { padding: 16px 18px 20px; }
+  .approval-modal { align-items: start; padding: 12px; }
+  .approval-modal-panel { border-radius: 14px; }
+  .approval-modal-header { padding: 18px 18px 15px; }
+  .approval-modal-body { padding: 16px 18px 18px; }
+  .approval-summary > div { align-items: flex-start; flex-direction: column; gap: 3px; }
+  .approval-summary strong { text-align: left; }
+  .approval-modal-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .approval-button { width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {
