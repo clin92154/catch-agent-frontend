@@ -347,6 +347,7 @@ function CardList({ cards = [], audienceMembers = [], onViewAudienceMembers }) {
     strategy_research: "研究摘要",
     marketing_insight: "營運摘要",
     member_analysis: "會員摘要",
+    campaign_discovery: "活動發想",
   };
   return (
     <div className="insight-card-list" aria-label="營運分析圖卡">

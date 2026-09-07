@@ -302,6 +302,8 @@ body.modal-open { overflow: hidden; }
 .insight-card-eyebrow { display: block; margin-bottom: 4px; color: var(--text-muted); font-size: 10px; font-weight: 800; letter-spacing: 0.08em; }
 .insight-card-description { max-width: 68ch; }
 .insight-card-marketing_plan .insight-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.insight-card-campaign_discovery .insight-grid { grid-template-columns: 1fr; }
+.insight-card-campaign_discovery .insight-value b { font-size: 15px; line-height: 1.7; }
 .insight-card-marketing_plan .insight-value b,
 .insight-card-strategy_research .insight-value b { color: var(--text); font-size: 16px; }
 .insight-card-marketing_plan .insight-item,
